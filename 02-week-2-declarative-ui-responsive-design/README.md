@@ -30,4 +30,28 @@
 3. Uji aplikasi dengan ukuran layar emulator yang berbeda.
    ![Ini Pada Tablet](/02-week-2-declarative-ui-responsive-design/screenshots/tablet-responsif.png)
 
-   ![Ini Pada Mobile Phone](/02-week-2-declarative-ui-responsive-design/screenshots/praktikum-layar-mobile.jpeg) 4. Tambahkan Semantics atau label yang bermakna pada elemen yang penting bagi screen reader.
+   ![Ini Pada Mobile Phone](/02-week-2-declarative-ui-responsive-design/screenshots/praktikum-layar-mobile.jpeg)
+
+4. Tambahkan Semantics atau label yang bermakna pada elemen yang penting bagi screen reader.
+
+## Tugas dan AI design exploration
+
+## Tugas utama
+
+Kembangkan dashboard menjadi halaman Academic Overview dengan ketentuan:
+
+<li>Memiliki header profil dan minimal empat kartu informasi.
+<li>Menggunakan Row, Column, Expanded, dan Container.
+<li>Menampilkan satu kolom pada layar sempit dan dua kolom pada layar lebar.
+<li>Menyediakan light theme dan dark theme yang tetap terbaca, dengan toggle tema (misal CupertinoSwitch atau Switch.adaptive).
+<li>Memiliki label aksesibilitas untuk informasi atau tombol penting.
+<li>Menyertakan screenshot layar sempit dan lebar pada folder screenshots/.
+
+![](/02-week-2-declarative-ui-responsive-design/screenshots/tugas-mobile-preview.jpeg)
+
+## AI Prompt Challenge
+
+<li>Prompt desain. Ajukan prompt ini (atau variasinya): "Bandingkan dua tata letak dashboard akademik untuk Flutter: versi GridView dan versi LayoutBuilder + Column. Jelaskan trade-off responsif dan aksesibilitasnya."
+<li>Prompt penguatan konsep. "Jelaskan kapan penggunaan Expanded justru menyebabkan overflow di dalam Row, beri contoh kode yang gagal dan perbaikannya."
+<li>Verification prompt. Minta AI mengaudit hasilnya sendiri: "Periksa kembali rekomendasi layout di atas: apakah tetap responsif di bawah 600px, apakah mengurangi aksesibilitas, dan apakah ada widget yang tidak tersedia di Flutter stabil saat ini?"
+<li>Dokumentasikan. Simpan prompt, output penting, keputusan yang dipilih, alasan teknis, dan bukti verifikasi (test/screenshots) di README tugas minggu ini.
