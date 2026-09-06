@@ -56,7 +56,6 @@ Kembangkan dashboard menjadi halaman Academic Overview dengan ketentuan:
 <li>Verification prompt. Minta AI mengaudit hasilnya sendiri: "Periksa kembali rekomendasi layout di atas: apakah tetap responsif di bawah 600px, apakah mengurangi aksesibilitas, dan apakah ada widget yang tidak tersedia di Flutter stabil saat ini?"
 <li>Dokumentasikan. Simpan prompt, output penting, keputusan yang dipilih, alasan teknis, dan bukti verifikasi (test/screenshots) di README tugas minggu ini.
 <p>Hasil Prompt ada di</p>
-
 ![](/02-week-2-declarative-ui-responsive-design/screenshots/prompt.md)
 
 ## Refactoring challenge
