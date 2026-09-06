@@ -55,3 +55,17 @@ Kembangkan dashboard menjadi halaman Academic Overview dengan ketentuan:
 <li>Prompt penguatan konsep. "Jelaskan kapan penggunaan Expanded justru menyebabkan overflow di dalam Row, beri contoh kode yang gagal dan perbaikannya."
 <li>Verification prompt. Minta AI mengaudit hasilnya sendiri: "Periksa kembali rekomendasi layout di atas: apakah tetap responsif di bawah 600px, apakah mengurangi aksesibilitas, dan apakah ada widget yang tidak tersedia di Flutter stabil saat ini?"
 <li>Dokumentasikan. Simpan prompt, output penting, keputusan yang dipilih, alasan teknis, dan bukti verifikasi (test/screenshots) di README tugas minggu ini.
+<p>Hasil Prompt ada di</p>
+
+![](/02-week-2-declarative-ui-responsive-design/screenshots/prompt.md)
+
+## Refactoring challenge
+
+<li>Ekstrak kartu informasi menjadi widget reusable (misal InfoCard) yang menerima title dan value, sehingga tidak ada duplikasi widget.
+<li>Ganti warna dan ukuran yang di-hardcode dengan Theme.of(context) agar mengikuti tema terang/gelap secara otomatis.
+<li>Pindahkan breakpoint ke satu konstanta bernama (misal const kWideBreakpoint = 700;) agar hanya didefinisikan satu kali.
+<li>Jalankan flutter analyze dan pastikan tidak ada error maupun warning baru.
+
+![Tampilan Mobile](/02-week-2-declarative-ui-responsive-design/screenshots/refactoring-mobile-preview.jpeg)
+
+##

@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+const kWideBreakpoint = 700.0;
 
 void main() => runApp(const AcademicApp());
 
@@ -54,6 +56,8 @@ class AcademicOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Academic Overview'),
@@ -74,7 +78,7 @@ class AcademicOverview extends StatelessWidget {
 
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 700 ? 2 : 1;
+          final columns = constraints.maxWidth >= kWideBreakpoint ? 2 : 1;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -86,14 +90,19 @@ class AcademicOverview extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 35,
-                        child: Icon(Icons.person, size: 40),
+                        backgroundColor: theme.colorScheme.primary,
+                        child: Icon(
+                          Icons.person,
+                          size: 40,
+                          color: theme.colorScheme.onPrimary,
+                        ),
                       ),
 
                       const SizedBox(width: 16),
@@ -104,13 +113,23 @@ class AcademicOverview extends StatelessWidget {
                           children: [
                             Text(
                               'Wawa Elent Irawanti',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            const Text('NIM: 2341720123'),
-                            const Text('Kelas: TI-2B'),
-                            const Text('D4 Teknik Informatika'),
+                            Text(
+                              'NIM: 244107020192',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            Text(
+                              'Kelas: TI-3H',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            Text(
+                              'D4 Teknik Informatika',
+                              style: theme.textTheme.bodyMedium,
+                            ),
                           ],
                         ),
                       ),
@@ -122,8 +141,9 @@ class AcademicOverview extends StatelessWidget {
 
                 Text(
                   'Academic Information',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 const SizedBox(height: 12),
@@ -137,39 +157,21 @@ class AcademicOverview extends StatelessWidget {
                   mainAxisSpacing: 16,
                   childAspectRatio: 2.6,
                   children: const [
-                    AcademicCard(
-                      title: 'Assignments',
-                      value: '8',
-                      icon: Icons.assignment,
-                    ),
-                    AcademicCard(
-                      title: 'Attendance',
-                      value: '92%',
-                      icon: Icons.calendar_month,
-                    ),
-                    AcademicCard(
-                      title: 'GPA',
-                      value: '3.75',
-                      icon: Icons.school,
-                    ),
-                    AcademicCard(
-                      title: 'Current Week',
-                      value: '02',
-                      icon: Icons.date_range,
-                    ),
+                    InfoCard(title: 'Assignments', value: '8'),
+                    InfoCard(title: 'Attendance', value: '92%'),
+                    InfoCard(title: 'GPA', value: '3.75'),
+                    InfoCard(title: 'Current Week', value: '02'),
                   ],
                 ),
 
                 const SizedBox(height: 20),
 
-                // Informasi Tambahan
+                // Status Akademi
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -177,7 +179,7 @@ class AcademicOverview extends StatelessWidget {
                       Icon(
                         Icons.info_outline,
                         size: 32,
-                        color: Theme.of(context).colorScheme.primary,
+                        color: theme.colorScheme.primary,
                       ),
 
                       const SizedBox(width: 12),
@@ -188,13 +190,15 @@ class AcademicOverview extends StatelessWidget {
                           children: [
                             Text(
                               'Academic Status',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
+                            Text(
                               'Your academic performance is '
                               'on track this semester.',
+                              style: theme.textTheme.bodyMedium,
                             ),
                           ],
                         ),
@@ -211,20 +215,17 @@ class AcademicOverview extends StatelessWidget {
   }
 }
 
-class AcademicCard extends StatelessWidget {
-  const AcademicCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    super.key,
-  });
+// Widget Reusable
+class InfoCard extends StatelessWidget {
+  const InfoCard({required this.title, required this.value, super.key});
 
   final String title;
   final String value;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Semantics(
       label: '$title, nilai $value',
       child: Card(
@@ -232,25 +233,12 @@ class AcademicCard extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 32,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-
+              Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
               Text(
                 value,
-                style: Theme.of(context).textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
