@@ -39,6 +39,15 @@ final postListProvider =
         // akan me-retry dan menggantung).
         retry: (retryCount, error) => null);
 
+final postDetailProvider = FutureProvider.family<Post, int>((ref, id) async {
+  final listState = ref.read(postListProvider);
+  final posts = listState is AsyncData<List<Post>> ? listState.value : null;
+  for (final post in posts ?? const <Post>[]) {
+    if (post.id == id) return post;
+  }
+  return ref.read(postRepositoryProvider).fetchPost(id);
+});
+
 /// Helper khusus testing (letakkan di providers.dart): membaca state
 /// pertama yang bukan loading lewat listener + completer, sehingga
 /// test tidak menunggu retry dan tidak melakukan HTTP sungguhan.
@@ -60,7 +69,6 @@ Future<List<Post>> readPostsOnce(ProviderContainer container) {
   );
   return completer.future.whenComplete(sub.close);
 }
-
 Future<Object?> readPostsErrorOnce(ProviderContainer container) {
   final completer = Completer<Object?>();
   final sub = container.listen<AsyncValue<List<Post>>>(
@@ -74,25 +82,3 @@ Future<Object?> readPostsErrorOnce(ProviderContainer container) {
   return completer.future.whenComplete(sub.close);
 }
 
-String friendlyErrorMessage(Object error) {
-  if (error is DioException) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return 'Koneksi lambat atau timeout. Periksa internet Anda lalu coba lagi.';
-      case DioExceptionType.connectionError:
-        return 'Tidak dapat terhubung ke server. Periksa internet Anda.';
-      case DioExceptionType.badResponse:
-        final code = error.response?.statusCode;
-        if (code == 404) return 'Data tidak ditemukan (404).';
-        if (code == 401 || code == 403) {
-          return 'Akses ditolak ($code). Periksa kredensial Anda.';
-        }
-        return 'Server bermasalah ($code). Coba lagi nanti.';
-      default:
-        return 'Terjadi kesalahan jaringan. Coba lagi.';
-    }
-  }
-  return 'Terjadi kesalahan tak terduga: $error';
-}

@@ -5,6 +5,11 @@ class PostRepository {
   PostRepository(this._dio);
   final Dio _dio;
 
+  Future<Post> fetchPost(int id) async {
+    final response = await _dio.get<Map<String, dynamic>>('/posts/$id');
+    return Post.fromJson(response.data ?? const <String, dynamic>{});
+  }
+
   Future<List<Post>> fetchPosts() async {
     final response = await _dio.get<List>('/posts');
     final data = response.data ?? [];
