@@ -7,10 +7,7 @@ import 'pages/post_detail_page.dart';
 
 final appRouter = GoRouter(
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const PagedPostPage(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const PagedPostPage()),
     GoRoute(
       path: '/post/:id',
       builder: (context, state) {
@@ -29,11 +26,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-        title: 'Week 4 - REST API',
-        theme: ThemeData(
-          colorSchemeSeed: Colors.indigo,
-          useMaterial3: true,
-        ),
-        routerConfig: appRouter,
-      );
+    title: 'Week 4 - REST API',
+    theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+    routerConfig: appRouter,
+  );
 }

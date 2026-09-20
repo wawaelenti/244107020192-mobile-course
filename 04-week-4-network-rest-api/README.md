@@ -45,6 +45,7 @@
 ## AI Challenge
 
 ### AI Verification Checklist
+
 Sebelum kode AI diterima, verifikasi hal berikut dan catat temuan Anda di README:
 
 <li>Apakah UI memanggil Dio secara langsung (dilarang) atau lewat repository?
@@ -69,6 +70,43 @@ Sebelum kode AI diterima, verifikasi hal berikut dan catat temuan Anda di README
 
 <li>Jalankan flutter analyze dan flutter test, apakah hasil AI lolos tanpa warning?
 
-|                   Flutter Analyze                    |                      Flutter Test                      |
-| :---------------------------------------------------: | :----------------------------------------------------------------: |
+|                   Flutter Analyze                   |                 Flutter Test                  |
+| :-------------------------------------------------: | :-------------------------------------------: |
 | ![flutter analyze](screenshots/flutter_analyze.png) | ![flutter test](screenshots/flutter_test.png) |
+
+## Refactoring & Testing
+
+### Refactoring Challenge
+
+Lakukan refactoring berikut pada project API Anda, lalu commit dengan pesan yang jelas:
+
+<li>Ekstrak widget baris post menjadi PostTile tersendiri agar ListView.builder pendek dan mudah diuji.
+
+<li>Pindahkan friendlyErrorMessage ke file lib/data/network_errors.dart agar bisa dipakai ulang halaman paged dan non-paged.
+
+<li>Tambahkan halaman detail post dengan GoRouter (/post/:id) yang menampilkan title dan body lengkap, state detail diambil dari list yang sudah dimuat atau via repository bila langsung dibuka.
+
+|                   Halaman Show Data                   |                 Halaman detail Data                  |
+| :-------------------------------------------------: | :-------------------------------------------: |
+| ![show data](screenshots/show_data.png) | ![detai data](screenshots/detail_data.png) |
+
+### Testing: unit test model + mock repository
+
+|                   Flutter Analyze                   |                 Flutter Test                  |
+| :-------------------------------------------------: | :-------------------------------------------: |
+| ![flutter analyze](screenshots/flutter_analyze_testing.png) | ![flutter test](screenshots/flutter_test_testing.png) |
+
+## CheckList verifikasi mandiri
+
+|   |   |
+|---|---|
+| [✓] | UI tidak memanggil Dio langsung, semua akses data lewat repository + provider. |
+| [✓] | Empat state tampil benar: loading, error (+ retry), empty, success. |
+| [✓] | Pagination: data bertambah saat scroll, tidak ada request ganda, ada indikator akhir data. |
+| [✓] | flutter analyze tanpa issue dan semua test lulus. |
+| [✓] | Hasil AI diverifikasi dan didokumentasikan pada folder docs/. |
+|   |   |
+
+
+
+

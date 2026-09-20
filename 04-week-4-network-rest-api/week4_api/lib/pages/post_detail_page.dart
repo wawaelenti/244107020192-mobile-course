@@ -19,7 +19,10 @@ class PostDetailPage extends ConsumerWidget {
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(friendlyErrorMessage(error), textAlign: TextAlign.center),
+            child: Text(
+              friendlyErrorMessage(error),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
         data: (post) => SingleChildScrollView(
@@ -27,7 +30,10 @@ class PostDetailPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(post.title, style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                post.title,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               const SizedBox(height: 20),
               Text(post.body, style: Theme.of(context).textTheme.bodyLarge),
             ],

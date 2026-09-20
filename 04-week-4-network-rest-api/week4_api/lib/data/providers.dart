@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'dart:async';
+
 import 'api_client.dart';
 import 'models/post.dart';
 import 'repositories/post_repository.dart';
@@ -31,13 +33,13 @@ class PostListNotifier extends AsyncNotifier<List<Post>> {
   }
 }
 
-final postListProvider =
-    AsyncNotifierProvider<PostListNotifier, List<Post>>(
-        PostListNotifier.new,
-        // Nonaktifkan retry otomatis Riverpod 3 agar error langsung
-        // final dan mudah diuji (tanpa ini, future provider di-test
-        // akan me-retry dan menggantung).
-        retry: (retryCount, error) => null);
+final postListProvider = AsyncNotifierProvider<PostListNotifier, List<Post>>(
+  PostListNotifier.new,
+  // Nonaktifkan retry otomatis Riverpod 3 agar error langsung
+  // final dan mudah diuji (tanpa ini, future provider di-test
+  // akan me-retry dan menggantung).
+  retry: (retryCount, error) => null,
+);
 
 final postDetailProvider = FutureProvider.family<Post, int>((ref, id) async {
   final listState = ref.read(postListProvider);
@@ -53,32 +55,30 @@ final postDetailProvider = FutureProvider.family<Post, int>((ref, id) async {
 /// test tidak menunggu retry dan tidak melakukan HTTP sungguhan.
 Future<List<Post>> readPostsOnce(ProviderContainer container) {
   final completer = Completer<List<Post>>();
-  final sub = container.listen<AsyncValue<List<Post>>>(
-    postListProvider,
-    (previous, next) {
-      if (next.isLoading || completer.isCompleted) return;
-      next.whenData(completer.complete);
-      if (next.hasError) {
-        completer.completeError(
-          next.error ?? StateError('unknown error'),
-          next.stackTrace ?? StackTrace.empty,
-        );
-      }
-    },
-    fireImmediately: true,
-  );
-  return completer.future.whenComplete(sub.close);
-}
-Future<Object?> readPostsErrorOnce(ProviderContainer container) {
-  final completer = Completer<Object?>();
-  final sub = container.listen<AsyncValue<List<Post>>>(
-    postListProvider,
-    (previous, next) {
-      if (next.isLoading || completer.isCompleted) return;
-      completer.complete(next.error);
-    },
-    fireImmediately: true,
-  );
+  final sub = container.listen<AsyncValue<List<Post>>>(postListProvider, (
+    previous,
+    next,
+  ) {
+    if (next.isLoading || completer.isCompleted) return;
+    next.whenData(completer.complete);
+    if (next.hasError) {
+      completer.completeError(
+        next.error ?? StateError('unknown error'),
+        next.stackTrace ?? StackTrace.empty,
+      );
+    }
+  }, fireImmediately: true);
   return completer.future.whenComplete(sub.close);
 }
 
+Future<Object?> readPostsErrorOnce(ProviderContainer container) {
+  final completer = Completer<Object?>();
+  final sub = container.listen<AsyncValue<List<Post>>>(postListProvider, (
+    previous,
+    next,
+  ) {
+    if (next.isLoading || completer.isCompleted) return;
+    completer.complete(next.error);
+  }, fireImmediately: true);
+  return completer.future.whenComplete(sub.close);
+}

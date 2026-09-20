@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../data/paged_posts.dart';
 import '../data/network_errors.dart';
 import '../widgets/post_tile.dart';
@@ -9,12 +10,10 @@ class PagedPostPage extends ConsumerStatefulWidget {
   const PagedPostPage({super.key});
 
   @override
-  ConsumerState<PagedPostPage> createState() =>
-      _PagedPostPageState();
+  ConsumerState<PagedPostPage> createState() => _PagedPostPageState();
 }
 
-class _PagedPostPageState
-    extends ConsumerState<PagedPostPage> {
+class _PagedPostPageState extends ConsumerState<PagedPostPage> {
   final _controller = ScrollController();
 
   @override
@@ -47,9 +46,8 @@ class _PagedPostPageState
               Text(friendlyErrorMessage(state.error!)),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => ref
-                    .read(pagedPostsProvider.notifier)
-                    .loadFirstPage(),
+                onPressed: () =>
+                    ref.read(pagedPostsProvider.notifier).loadFirstPage(),
                 child: const Text('Coba lagi'),
               ),
             ],
@@ -67,8 +65,7 @@ class _PagedPostPageState
             if (!state.hasMore) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child:
-                    Center(child: Text('Semua data termuat.')),
+                child: Center(child: Text('Semua data termuat.')),
               );
             }
             return const Padding(
