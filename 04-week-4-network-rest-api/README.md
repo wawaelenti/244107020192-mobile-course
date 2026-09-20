@@ -41,3 +41,34 @@
 1. Halaman 1 tampil dulu, awalnya muncul 10 post, jika melakukan scroll ke bawah muncul loading kecil lalu muncul data berikutnya otomatis muncul
 
 <p align="center"><img src="screenshots/halaman1.png" width="280" height="580"></p>
+
+## AI Challenge
+
+### AI Verification Checklist
+Sebelum kode AI diterima, verifikasi hal berikut dan catat temuan Anda di README:
+
+<li>Apakah UI memanggil Dio secara langsung (dilarang) atau lewat repository?
+
+= UI tidak memanggil Dio langsung; melalui provider dan repository.
+
+<li>Apakah fromJson aman null, atau masih memakai cast langsung yang bisa crash?
+
+= fromJson aman terhadap field hilang/null.
+
+<li>Apakah semua tipe DioExceptionType (timeout, connectionError, badResponse) dipetakan ke pesan pengguna?
+
+= Timeout, connectionError, dan badResponse dipetakan ke pesan pengguna.
+
+<li>Apakah baseUrl/timeout terpusat di satu client, bukan tersebar di tiap method?
+
+= baseUrl dan seluruh timeout Dio dipusatkan di api_client.dart.
+
+<li>Apakah test AI benar-benar menguji kasus field hilang, atau hanya happy path? Tambahkan minimal 1 edge case sendiri.
+
+= Edge-case test Post.fromJson ditambahkan di comment_test.dart.
+
+<li>Jalankan flutter analyze dan flutter test, apakah hasil AI lolos tanpa warning?
+
+|                   Flutter Analyze                    |                      Flutter Test                      |
+| :---------------------------------------------------: | :----------------------------------------------------------------: |
+| ![flutter analyze](screenshots/flutter_analyze.png) | ![flutter test](screenshots/flutter_test.png) |
