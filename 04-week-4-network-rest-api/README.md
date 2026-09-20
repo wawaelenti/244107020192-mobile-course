@@ -108,5 +108,53 @@ Lakukan refactoring berikut pada project API Anda, lalu commit dengan pesan yang
 |   |   |
 
 
+## Tugas, refleksi, dan referensi
+
+## Mini project / Industry Challenge
+
+### Hasil Implementasi
+
+1. Halaman utama menampilkan daftar post dari REST API JSONPlaceholder dengan pagination 10 data per halaman, jika scroll maka akan muncul loading data.
+
+<p align="center"><img src="screenshots/halaman_postAPI.png" width="280" height="580"></p>
+
+2. Pagination, memuat data berikutnya secara otomatis ketika pengguna melakukan scroll ke bawah. Setelah seluruh data berhasil dimuat, aplikasi menampilkan tulisan “Semua data telah termuat” dan tidak melakukan request tambahan.
+
+<p align="center"><img src="screenshots/pagination.png" width="280" height="580"></p>
+
+3. Error Handling, ketika terjadi error pada pada request, aplikasi menampilkan pesan error dan tombol Coba lagi.
+
+<p align="center"><img src="screenshots/error_handling.png" width="280" height="580"></p>
+
+4. Pengujian dilakukan dengan menggunakan flutter test dan mencakup unit test model/error mapping serta provider test menggunakan repository palsu. 
+
+<p align="center"><img src="screenshots/testing_mini_project.png"></p>
+
+5. Dokumentasi AI Challenge berisi prompt yang digunakan, hasil dari AI, perbaikan yang dilakukan, serta alasan pemilihan solusi teknis. Dokumentasi disimpan di folder docs/.
+
+## Refleksi
+
+<li><b> Mengapa UI dilarang memanggil Dio langsung? Apa yang rusak jika aturan ini dilanggar?</b><br>
+Dio digunakan di repository supaya pengaturan API seperti baseUrl, timeout, dan interceptor cukup dibuat di satu tempat. Kalau Dio dipanggil langsung dari UI, kode jadi lebih susah saat mau testing atau ada perubahan API.</li>
+
+<li><b> Kapan pagination client-side cukup, dan kapan harus mengandalkan pagination server (_page/_limit)?</b><br>
+Pagination client-side cukup untuk data yang sedikit. Jika data banyak, lebih baik menggunakan pagination server dengan _page dan _limit agar data diambil secara bertahap.</li>
+
+<li><b> Bagaimana exception repository berubah menjadi AsyncError tanpa try/catch di setiap widget? Kapan try/catch eksplisit tetap dibutuhkan?</b><br>
+Riverpod bisa menangkap error dari repository dan mengubahnya menjadi AsyncError. Karena project ini memakai Notifier<PostsState>, try/catch digunakan untuk mengisi state.error dan tetap mempertahankan data yang sudah ada.</li>
+
+<li><b> Bagian mana dari hasil AI yang Anda perbaiki, dan mengapa?</b><br>
+Hasil dari AI disesuaikan lagi dengan project yang dibuat. Beberapa bagian yang diperbaiki yaitu FamilyAsyncNotifier, timeout Dio, test bawaan Flutter, edge-case test, PostTile, network_errors.dart, provider test, dan guard pagination.</li>
+
+
+
+
+
+
+
+
+
+
+
 
 
