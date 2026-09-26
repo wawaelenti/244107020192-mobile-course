@@ -86,8 +86,9 @@ class PostsNotifier extends Notifier<PostsState> {
     if (_requestInFlight ||
         state.isLoading ||
         state.isLoadingMore ||
-        !state.hasMore)
+        !state.hasMore) {
       return;
+    }
     _requestInFlight = true;
     state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
