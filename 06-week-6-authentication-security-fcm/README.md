@@ -19,7 +19,7 @@
 
 1. Notification Permission
 
-<p align="center"><img src="screenshots/notification_permission.png" width="280" height="380"></p>
+<p align="center"><img src="screenshots/notification_permission.png"></p>
 
 <li> Menampilkan permission notifikasi pada browser dan memastikan permission berhasil diberikan. </li><br>
 
@@ -52,3 +52,24 @@
 <p align="center"><img src="screenshots/fcm_terminated.png"></p>
 
 <li> Pengujian penerimaan notifikasi ketika halaman aplikasi Flutter sudah ditutup. </li><br>
+
+## Praktikum 3: Payload, tiga app state, klik dan topik
+
+1. Notification dengan Payload Data
+
+<p align="center"><img src="screenshots/custom_data.png"></p>
+
+<li> Notification dikirim melalui Firebase Console dengan tambahan Custom Data berupa route dan id. </li><br>
+
+2. Notification Diterima
+
+<p align="center"><img src="screenshots/prak3_notification.png"></p>
+
+<li> Setelah notification dikirim melalui Firebase Console, notification berhasil diterima pada browser Chrome. </li><br>
+
+3. Navigation ke Halaman Pengumuman
+
+<p align="center"><img src="screenshots/announcement_page.png"></p>
+
+<li> Data route digunakan untuk menentukan halaman tujuan. Pada Flutter Web, route dapat diakses melalui /#/pengumuman/3. Halaman tujuan berhasil menampilkan ID pengumuman berdasarkan data id yang dikirim.</li><br>
+

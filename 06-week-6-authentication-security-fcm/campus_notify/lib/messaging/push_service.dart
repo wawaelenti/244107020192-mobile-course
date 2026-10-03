@@ -22,10 +22,19 @@ Future<void> firebaseMessagingBackgroundHandler(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Menampilkan informasi sederhana pada debug console.
-  debugPrint(
-    'Pesan background diterima: ${message.messageId}',
-  );
+  debugPrint('==============================');
+  debugPrint('FCM BACKGROUND MESSAGE');
+  debugPrint('Message ID : ${message.messageId}');
+  debugPrint('Title      : ${message.notification?.title}');
+  debugPrint('Body       : ${message.notification?.body}');
+  debugPrint('Data       : ${message.data}');
+
+  final route = message.data['route'];
+  final id = message.data['id'];
+
+  debugPrint('Route      : $route');
+  debugPrint('ID         : $id');
+  debugPrint('==============================');
 }
 
 /// Service untuk menangani Firebase Cloud Messaging.
@@ -54,7 +63,18 @@ class PushService {
     // dalam kondisi background.
     FirebaseMessaging.onMessageOpenedApp.listen(
       (message) {
+        debugPrint('==============================');
+        debugPrint('FCM NOTIFICATION CLICKED');
+        debugPrint('Message ID : ${message.messageId}');
+        debugPrint('Data       : ${message.data}');
+
         final route = message.data['route'] ?? '/';
+        final id = message.data['id'] ?? '';
+
+        debugPrint('Route      : $route');
+        debugPrint('ID         : $id');
+        debugPrint('==============================');
+
         onNavigate(route);
       },
     );
@@ -115,6 +135,11 @@ class PushService {
       onDidReceiveNotificationResponse: (
         NotificationResponse response,
       ) {
+        debugPrint('==============================');
+        debugPrint('LOCAL NOTIFICATION CLICKED');
+        debugPrint('Payload: ${response.payload}');
+        debugPrint('==============================');
+
         // Payload berisi route yang akan dibuka.
         final route = response.payload;
 
@@ -147,6 +172,7 @@ class PushService {
   }) async {
     // Mengambil token FCM saat ini.
     final token = await FirebaseMessaging.instance.getToken(
+      // Pertahankan VAPID key milik project kamu yang sekarang.
       vapidKey:
           'BDDH2Onsdj5lcB7ZZszSg6wuIrxojYHhNoGr4_WvoyyOllzY6hUYnhd5gPHJS8x6kzIVnonKMB8H0tfTIZwcTGw',
     );
@@ -169,18 +195,47 @@ class PushService {
       },
     );
 
-    // Berlangganan topic pengumuman kampus.
-    await FirebaseMessaging.instance.subscribeToTopic(
-      'pengumuman-kampus',
-    );
+    // Topic subscription client-side tidak dijalankan di Web.
+    // Untuk Android/iOS, topic dapat digunakan langsung.
+    if (!kIsWeb) {
+      await FirebaseMessaging.instance.subscribeToTopic(
+        'pengumuman-kampus',
+      );
+
+      debugPrint(
+        'Berhasil subscribe ke topic: pengumuman-kampus',
+      );
+    } else {
+      debugPrint(
+        'Web: topic subscription dilewati.',
+      );
+    }
   }
 
   /// Mendengarkan pesan ketika aplikasi sedang foreground.
   void listenForeground() {
     FirebaseMessaging.onMessage.listen(
       (message) async {
+        debugPrint('==============================');
+        debugPrint('FCM FOREGROUND MESSAGE');
+        debugPrint('Message ID : ${message.messageId}');
+        debugPrint(
+          'Title      : ${message.notification?.title}',
+        );
+        debugPrint(
+          'Body       : ${message.notification?.body}',
+        );
+        debugPrint('Data       : ${message.data}');
+
         // Mengambil route dari data FCM.
         final route = message.data['route'] ?? '/';
+
+        // Mengambil ID pengumuman dari data FCM.
+        final id = message.data['id'] ?? '';
+
+        debugPrint('Route      : $route');
+        debugPrint('ID         : $id');
+        debugPrint('==============================');
 
         // Detail notifikasi Android.
         const androidDetails = AndroidNotificationDetails(
@@ -219,8 +274,30 @@ class PushService {
         await FirebaseMessaging.instance.getInitialMessage();
 
     if (initialMessage != null) {
+      debugPrint('==============================');
+      debugPrint('FCM OPENED FROM TERMINATED');
+      debugPrint(
+        'Message ID : ${initialMessage.messageId}',
+      );
+      debugPrint(
+        'Title      : ${initialMessage.notification?.title}',
+      );
+      debugPrint(
+        'Body       : ${initialMessage.notification?.body}',
+      );
+      debugPrint(
+        'Data       : ${initialMessage.data}',
+      );
+
       final route =
           initialMessage.data['route'] ?? '/';
+
+      final id =
+          initialMessage.data['id'] ?? '';
+
+      debugPrint('Route      : $route');
+      debugPrint('ID         : $id');
+      debugPrint('==============================');
 
       // Menunggu sebentar sampai aplikasi siap melakukan navigasi.
       Future.delayed(
@@ -246,15 +323,37 @@ class PushService {
 
   /// Subscribe ke topic pengumuman kampus.
   Future<void> subscribeToCampusTopic() async {
+    if (kIsWeb) {
+      debugPrint(
+        'Web: subscribeToCampusTopic dilewati.',
+      );
+      return;
+    }
+
     await FirebaseMessaging.instance.subscribeToTopic(
       'pengumuman-kampus',
+    );
+
+    debugPrint(
+      'Subscribe topic berhasil: pengumuman-kampus',
     );
   }
 
   /// Unsubscribe dari topic pengumuman kampus.
   Future<void> unsubscribeFromCampusTopic() async {
+    if (kIsWeb) {
+      debugPrint(
+        'Web: unsubscribeToCampusTopic dilewati.',
+      );
+      return;
+    }
+
     await FirebaseMessaging.instance.unsubscribeFromTopic(
       'pengumuman-kampus',
+    );
+
+    debugPrint(
+      'Unsubscribe topic berhasil: pengumuman-kampus',
     );
   }
 }

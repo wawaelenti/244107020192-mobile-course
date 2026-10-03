@@ -11,81 +11,88 @@ import 'pages/home_page.dart';
 import 'pages/login_page.dart';
 import 'providers/auth_provider.dart';
 
-// Satu ProviderContainer digunakan oleh aplikasi.
 final container = ProviderContainer();
-
-// Router dibuat sebagai variable global agar bisa digunakan
-// oleh PushService ketika notifikasi diklik.
 late final GoRouter appRouter;
 
 Future<void> main() async {
-  // Memastikan binding Flutter sudah siap.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi Firebase.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Mendaftarkan handler untuk pesan ketika aplikasi berada
-  // di background.
   FirebaseMessaging.onBackgroundMessage(
     firebaseMessagingBackgroundHandler,
   );
 
-  // Mengecek apakah user sudah login sebelum aplikasi dibuka.
-  final loggedIn = await container
-      .read(authStateProvider.future);
+  final loggedIn = await container.read(authStateProvider.future);
 
-  // Membuat router aplikasi.
+  debugPrint('=== APP START ===');
+  debugPrint('LOGIN AWAL: $loggedIn');
+
   appRouter = GoRouter(
     initialLocation: loggedIn ? '/' : '/login',
 
     redirect: (context, state) {
-      // Membaca status login.
       final isLoggedIn =
           container.read(authStateProvider).value ?? loggedIn;
 
-      // Mengecek apakah sedang membuka halaman login.
-      final goingLogin =
-          state.matchedLocation == '/login';
+      final currentRoute = state.matchedLocation;
+      final goingLogin = currentRoute == '/login';
 
-      // Belum login tidak boleh membuka halaman lain.
+      debugPrint('==============================');
+      debugPrint('ROUTE SEKARANG: $currentRoute');
+      debugPrint('LOGIN STATUS: $isLoggedIn');
+      debugPrint('==============================');
+
+      // Kalau belum login, arahkan ke login.
       if (!isLoggedIn && !goingLogin) {
+        debugPrint('REDIRECT → /login');
         return '/login';
       }
 
-      // Sudah login tidak perlu kembali ke login.
+      // Kalau sudah login tetapi mencoba membuka login,
+      // arahkan ke Home.
       if (isLoggedIn && goingLogin) {
+        debugPrint('REDIRECT → /');
         return '/';
       }
 
+      // Tidak ada redirect.
       return null;
     },
 
     routes: [
       GoRoute(
         path: '/login',
-        builder: (_, _) => const LoginPage(),
+        builder: (context, state) {
+          return const LoginPage();
+        },
       ),
 
       GoRoute(
         path: '/',
-        builder: (_, _) => const HomePage(),
+        builder: (context, state) {
+          return const HomePage();
+        },
       ),
 
       GoRoute(
         path: '/pengumuman/:id',
-        builder: (_, state) {
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+
+          debugPrint('=== ANNOUNCEMENT PAGE ===');
+          debugPrint('ID PENGUMUMAN: $id');
+
           return AnnouncementPage(
-            id: state.pathParameters['id'] ?? '',
+            id: id,
           );
         },
       ),
     ],
   );
 
-  // Jalankan aplikasi.
   runApp(
     UncontrolledProviderScope(
       container: container,
@@ -95,7 +102,9 @@ Future<void> main() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({
+    super.key,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -106,8 +115,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // Menjalankan inisialisasi FCM setelah widget pertama
-    // selesai dibuat.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeFCM();
     });
@@ -116,28 +123,22 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initializeFCM() async {
     final pushService = PushService(
       onNavigate: (route) {
-        // Jika notifikasi mempunyai route,
-        // arahkan ke route tersebut.
+        debugPrint('================================');
+        debugPrint('NAVIGASI DARI NOTIFICATION');
+        debugPrint('ROUTE: $route');
+        debugPrint('================================');
+
         appRouter.go(route);
       },
     );
 
     await pushService.initialize(
       onToken: (token) async {
-        // Untuk praktikum, token hanya ditampilkan sebagian.
         final preview = token.length > 12
             ? '${token.substring(0, 12)}...'
             : token;
 
-        debugPrint(
-          'FCM Token: $preview',
-        );
-
-        // Nanti bagian ini bisa diganti dengan:
-        // await dio.post('/devices', data: {
-        //   'fcm_token': token,
-        //   'platform': 'android',
-        // });
+        debugPrint('FCM Token: $preview');
       },
     );
   }
@@ -151,4 +152,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
