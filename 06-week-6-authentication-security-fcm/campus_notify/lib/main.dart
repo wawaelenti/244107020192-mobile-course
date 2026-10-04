@@ -11,6 +11,7 @@ import 'pages/announcement_page.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
 import 'providers/auth_provider.dart';
+import 'routes.dart';
 
 final container = ProviderContainer();
 late final GoRouter appRouter;
@@ -32,14 +33,14 @@ Future<void> main() async {
   debugPrint('LOGIN AWAL: $loggedIn');
 
   appRouter = GoRouter(
-    initialLocation: loggedIn ? '/' : '/login',
+    initialLocation: loggedIn ? AppRoutes.home : AppRoutes.login,
 
     redirect: (context, state) {
       final isLoggedIn =
           container.read(authStateProvider).value ?? loggedIn;
 
       final currentRoute = state.matchedLocation;
-      final goingLogin = currentRoute == '/login';
+      final goingLogin = currentRoute == AppRoutes.login;
 
       debugPrint('==============================');
       debugPrint('ROUTE SEKARANG: $currentRoute');
@@ -49,14 +50,14 @@ Future<void> main() async {
       // Kalau belum login, arahkan ke login.
       if (!isLoggedIn && !goingLogin) {
         debugPrint('REDIRECT → /login');
-        return '/login';
+        return AppRoutes.login;
       }
 
       // Kalau sudah login tetapi mencoba membuka login,
       // arahkan ke Home.
       if (isLoggedIn && goingLogin) {
         debugPrint('REDIRECT → /');
-        return '/';
+        return AppRoutes.home;
       }
 
       // Tidak ada redirect.
@@ -65,21 +66,21 @@ Future<void> main() async {
 
     routes: [
       GoRoute(
-        path: '/login',
+        path: AppRoutes.login,
         builder: (context, state) {
           return const LoginPage();
         },
       ),
 
       GoRoute(
-        path: '/',
+        path: AppRoutes.home,
         builder: (context, state) {
           return const HomePage();
         },
       ),
 
       GoRoute(
-        path: '/pengumuman/:id',
+        path: AppRoutes.announcement,
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
 

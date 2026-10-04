@@ -84,3 +84,62 @@
 - **Token/secret di-hardcode atau di-log penuh?** Tidak. Token tidak di-hardcode atau dicetak. URL API dan VAPID key dikonfigurasi saat run; VAPID key adalah public key.
 - **Keputusan final dan alasan teknis:** gunakan local notification manual agar notifikasi foreground konsisten dan tidak ada banner ganda di iOS; daftarkan token baru ke backend agar token lifecycle tersinkron. Detail platform, keputusan, dan bukti verifikasi: [docs/ai-verification.md](./docs/ai-verification.md).
 
+
+## Refactoring, testing, dan error umum
+
+### Refactoring Challenge
+
+<li> Pindahkan semua string rute (/login, /pengumuman/:id) ke satu file lib/routes.dart agar deep link dari FCM dan GoRouter memakai konstanta yang sama.
+
+<li> Ekstrak parsing RemoteMessage -> route ke fungsi murni routeFromMessage(Map<String, dynamic> data) agar bisa diunit-test tanpa Firebase.
+
+<li> Pindahkan pemetaan DioException -> pesan ramah pengguna (401, timeout, offline) ke lib/data/api_errors.dart agar UI hanya menerima pesan, bukan exception mentah. <br></br>
+
+1. Route Pengumuman 
+
+<p align="center"><img src="screenshots/route_pengumuman.png"></p>
+
+<li> Pengujian route /pengumuman/3 berhasil dan parameter ID berhasil diteruskan ke halaman pengumuman.</li><br>
+
+2. Refactoring Route 
+
+<p align="center"><img src="screenshots/routes.png"></p>
+
+<li> Konstanta route aplikasi dipusatkan pada routes.dart agar route GoRouter dan deep link FCM menggunakan referensi yang sama.</li><br>
+
+3. Refactoring Parsing Route FCM
+
+<p align="center"><img src="screenshots/route_parser.png"></p>
+
+<li> Parsing route dari data FCM dipisahkan menjadi fungsi murni routeFromMessage() agar dapat diuji tanpa membutuhkan Firebase.</li><br>
+
+4. Refactoring API Erro
+
+<p align="center"><img src="screenshots/api_errors.png"></p>
+
+<li> Penanganan DioException dipisahkan dari UI sehingga error dapat diubah menjadi pesan yang lebih mudah dipahami pengguna.</li><br>
+
+5. Membuat Unit Test
+
+<p align="center"><img src="screenshots/unit_test.png"></p>
+
+<li> Unit test Unit test dibuat pada test/auth_push_test.dart. Test ini digunakan untuk menguji parsing route FCM, pemetaan error API, dan status autentikasi berdasarkan access token.</li><br>
+
+
+### Testing: unit test tanpa Firebase sungguhan
+
+|                   Flutter Analyze                   |                 Flutter Test                  |
+| :-------------------------------------------------: | :-------------------------------------------: |
+| ![flutter analyze](screenshots/flutter_analyze.png) | ![flutter test](screenshots/flutter_test.png) |
+
+## CheckList verifikasi mandiri
+
+|     |                                                                                          |
+| --- | ---------------------------------------------------------------------------------------- |
+| [✓] | Token hanya di flutter_secure_storage, tidak di SharedPreferences/log/screenshot penuh. |
+| [✓] | 401 memicu refresh sekali lalu retry; refresh mati memaksa login ulang.                |
+| [✓] | Ketiga app state teruji dengan tabel bukti; klik masuk ke rute yang benar.              |
+| [✓] | Topik untuk broadcast, token untuk pesan personal.                                        |
+| [✓] | flutter analyze bersih dan semua test lulus.                            |
+|     |                                                                                          |
+

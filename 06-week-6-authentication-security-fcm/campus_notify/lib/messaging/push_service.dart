@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
-import 'notification_route.dart';
+import 'route_parser.dart';
 
 final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
@@ -15,8 +15,12 @@ final FlutterLocalNotificationsPlugin _localNotifications =
 /// Firebase invokes this top-level handler in a background isolate.
 /// It must not access widgets, BuildContext, or app navigation state.
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+Future<void> firebaseMessagingBackgroundHandler(
+  RemoteMessage message,
+) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 }
 
 class PushService {
@@ -34,14 +38,16 @@ class PushService {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
-            alert: false,
-            badge: false,
-            sound: false,
-          );
+        alert: false,
+        badge: false,
+        sound: false,
+      );
     }
 
     listenForeground();
+
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
+
     await handleTerminated();
     await initFcmToken(onToken: onToken);
 
@@ -51,7 +57,8 @@ class PushService {
   }
 
   Future<bool> requestNotificationPermission() async {
-    final settings = await FirebaseMessaging.instance.requestPermission(
+    final settings =
+        await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -61,14 +68,17 @@ class PushService {
       provisional: false,
     );
 
-    return settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
+    return settings.authorizationStatus ==
+            AuthorizationStatus.authorized ||
+        settings.authorizationStatus ==
+            AuthorizationStatus.provisional;
   }
 
   Future<void> initLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
+
     const iosSettings = DarwinInitializationSettings();
 
     await _localNotifications.initialize(
@@ -81,10 +91,13 @@ class PushService {
       },
     );
 
-    final launchDetails = await _localNotifications
-        .getNotificationAppLaunchDetails();
+    final launchDetails =
+        await _localNotifications.getNotificationAppLaunchDetails();
+
     if (launchDetails?.didNotificationLaunchApp ?? false) {
-      _navigateToRoute(launchDetails?.notificationResponse?.payload);
+      _navigateToRoute(
+        launchDetails?.notificationResponse?.payload,
+      );
     }
 
     const channel = AndroidNotificationChannel(
@@ -96,8 +109,7 @@ class PushService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
   }
 
@@ -105,6 +117,7 @@ class PushService {
     required Future<void> Function(String token) onToken,
   }) async {
     const vapidKey = String.fromEnvironment('FCM_VAPID_KEY');
+
     if (kIsWeb && vapidKey.isEmpty) {
       throw StateError(
         'FCM_VAPID_KEY must be supplied with --dart-define on web.',
@@ -112,12 +125,15 @@ class PushService {
     }
 
     FirebaseMessaging.instance.onTokenRefresh.listen(
-      (newToken) => unawaited(_registerToken(newToken, onToken)),
+      (newToken) => unawaited(
+        _registerToken(newToken, onToken),
+      ),
     );
 
     final token = await FirebaseMessaging.instance.getToken(
       vapidKey: kIsWeb ? vapidKey : null,
     );
+
     if (token != null) {
       await _registerToken(token, onToken);
     }
@@ -125,7 +141,8 @@ class PushService {
 
   void listenForeground() {
     FirebaseMessaging.onMessage.listen((message) async {
-      final route = notificationRouteFromData(message.data);
+      final route = routeFromMessage(message.data);
+
       const details = NotificationDetails(
         android: AndroidNotificationDetails(
           'pengumuman',
@@ -167,7 +184,9 @@ class PushService {
   }
 
   void _handleMessageTap(RemoteMessage message) {
-    _navigateToRoute(notificationRouteFromData(message.data));
+    _navigateToRoute(
+      routeFromMessage(message.data),
+    );
   }
 
   void _navigateToRoute(String? route) {
@@ -177,7 +196,9 @@ class PushService {
   }
 
   Future<void> handleTerminated() async {
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    final initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+
     if (initialMessage != null) {
       _handleMessageTap(initialMessage);
     }
@@ -185,19 +206,27 @@ class PushService {
 
   Future<void> subscribeToCampusTopic() async {
     if (kIsWeb) {
-      debugPrint('FCM topic subscription is not supported on web.');
+      debugPrint(
+        'FCM topic subscription is not supported on web.',
+      );
       return;
     }
 
-    await FirebaseMessaging.instance.subscribeToTopic('pengumuman-kampus');
+    await FirebaseMessaging.instance.subscribeToTopic(
+      'pengumuman-kampus',
+    );
   }
 
   Future<void> unsubscribeFromCampusTopic() async {
     if (kIsWeb) {
-      debugPrint('FCM topic unsubscription is not supported on web.');
+      debugPrint(
+        'FCM topic unsubscription is not supported on web.',
+      );
       return;
     }
 
-    await FirebaseMessaging.instance.unsubscribeFromTopic('pengumuman-kampus');
+    await FirebaseMessaging.instance.unsubscribeFromTopic(
+      'pengumuman-kampus',
+    );
   }
 }
