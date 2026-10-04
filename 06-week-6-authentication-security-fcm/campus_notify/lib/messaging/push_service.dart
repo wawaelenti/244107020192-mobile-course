@@ -1,98 +1,57 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
+import 'notification_route.dart';
 
-/// Plugin untuk menampilkan local notification.
 final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
 
-/// Menyimpan deep link sementara dari notifikasi.
-String? pendingDeepLink;
-
-/// Handler untuk pesan FCM ketika aplikasi berada di background.
+/// Firebase invokes this top-level handler in a background isolate.
+/// It must not access widgets, BuildContext, or app navigation state.
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-  RemoteMessage message,
-) async {
-  // Inisialisasi Firebase pada isolate background.
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  debugPrint('==============================');
-  debugPrint('FCM BACKGROUND MESSAGE');
-  debugPrint('Message ID : ${message.messageId}');
-  debugPrint('Title      : ${message.notification?.title}');
-  debugPrint('Body       : ${message.notification?.body}');
-  debugPrint('Data       : ${message.data}');
-
-  final route = message.data['route'];
-  final id = message.data['id'];
-
-  debugPrint('Route      : $route');
-  debugPrint('ID         : $id');
-  debugPrint('==============================');
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
-/// Service untuk menangani Firebase Cloud Messaging.
 class PushService {
-  PushService({
-    required this.onNavigate,
-  });
+  PushService({required this.onNavigate});
 
-  /// Callback untuk melakukan navigasi.
+  /// The router callback is context-free and can be called from message taps.
   final void Function(String route) onNavigate;
 
-  /// Menjalankan seluruh proses inisialisasi FCM.
   Future<void> initialize({
     required Future<void> Function(String token) onToken,
   }) async {
-    // Meminta izin notifikasi.
     await requestNotificationPermission();
-
-    // Menyiapkan local notification.
     await initLocalNotifications();
 
-    // Mendengarkan pesan ketika aplikasi sedang terbuka.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: false,
+            badge: false,
+            sound: false,
+          );
+    }
+
     listenForeground();
-
-    // Menangani klik notifikasi saat aplikasi berada
-    // dalam kondisi background.
-    FirebaseMessaging.onMessageOpenedApp.listen(
-      (message) {
-        debugPrint('==============================');
-        debugPrint('FCM NOTIFICATION CLICKED');
-        debugPrint('Message ID : ${message.messageId}');
-        debugPrint('Data       : ${message.data}');
-
-        final route = message.data['route'] ?? '/';
-        final id = message.data['id'] ?? '';
-
-        debugPrint('Route      : $route');
-        debugPrint('ID         : $id');
-        debugPrint('==============================');
-
-        onNavigate(route);
-      },
-    );
-
-    // Menangani notifikasi ketika aplikasi sebelumnya
-    // dalam kondisi terminated.
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
     await handleTerminated();
+    await initFcmToken(onToken: onToken);
 
-    // Mengambil FCM token dan mendengarkan perubahan token.
-    await initFcmToken(
-      onToken: onToken,
-    );
+    if (!kIsWeb) {
+      await subscribeToCampusTopic();
+    }
   }
 
-  /// Meminta izin untuk menampilkan notifikasi.
   Future<bool> requestNotificationPermission() async {
-    final settings =
-        await FirebaseMessaging.instance.requestPermission(
+    final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -102,57 +61,32 @@ class PushService {
       provisional: false,
     );
 
-    final authorized =
-        settings.authorizationStatus ==
-                AuthorizationStatus.authorized ||
-            settings.authorizationStatus ==
-                AuthorizationStatus.provisional;
-
-    debugPrint(
-      'Notification permission: '
-      '${settings.authorizationStatus}',
-    );
-
-    return authorized;
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
-  /// Menginisialisasi local notification.
   Future<void> initLocalNotifications() async {
-    // Konfigurasi Android.
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-
-    // Konfigurasi iOS.
     const iosSettings = DarwinInitializationSettings();
 
-    // Inisialisasi plugin.
     await _localNotifications.initialize(
       settings: const InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       ),
-      onDidReceiveNotificationResponse: (
-        NotificationResponse response,
-      ) {
-        debugPrint('==============================');
-        debugPrint('LOCAL NOTIFICATION CLICKED');
-        debugPrint('Payload: ${response.payload}');
-        debugPrint('==============================');
-
-        // Payload berisi route yang akan dibuka.
-        final route = response.payload;
-
-        if (route != null && route.isNotEmpty) {
-          pendingDeepLink = route;
-
-          // Navigasi ke halaman yang sesuai.
-          onNavigate(route);
-        }
+      onDidReceiveNotificationResponse: (response) {
+        _navigateToRoute(response.payload);
       },
     );
 
-    // Notification channel untuk Android.
+    final launchDetails = await _localNotifications
+        .getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp ?? false) {
+      _navigateToRoute(launchDetails?.notificationResponse?.payload);
+    }
+
     const channel = AndroidNotificationChannel(
       'pengumuman',
       'Pengumuman Kampus',
@@ -162,198 +96,108 @@ class PushService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
-  /// Mengambil FCM token dan memantau perubahan token.
   Future<void> initFcmToken({
     required Future<void> Function(String token) onToken,
   }) async {
-    // Mengambil token FCM saat ini.
-    final token = await FirebaseMessaging.instance.getToken(
-      // Pertahankan VAPID key milik project kamu yang sekarang.
-      vapidKey:
-          'BDDH2Onsdj5lcB7ZZszSg6wuIrxojYHhNoGr4_WvoyyOllzY6hUYnhd5gPHJS8x6kzIVnonKMB8H0tfTIZwcTGw',
-    );
-
-    // Menampilkan FCM token di debug console.
-    debugPrint('FCM Token: $token');
-
-    if (token != null) {
-      await onToken(token);
+    const vapidKey = String.fromEnvironment('FCM_VAPID_KEY');
+    if (kIsWeb && vapidKey.isEmpty) {
+      throw StateError(
+        'FCM_VAPID_KEY must be supplied with --dart-define on web.',
+      );
     }
 
-    // Memantau perubahan token.
     FirebaseMessaging.instance.onTokenRefresh.listen(
-      (newToken) async {
-        debugPrint(
-          'FCM Token diperbarui: $newToken',
-        );
-
-        await onToken(newToken);
-      },
+      (newToken) => unawaited(_registerToken(newToken, onToken)),
     );
 
-    // Topic subscription client-side tidak dijalankan di Web.
-    // Untuk Android/iOS, topic dapat digunakan langsung.
-    if (!kIsWeb) {
-      await FirebaseMessaging.instance.subscribeToTopic(
-        'pengumuman-kampus',
-      );
-
-      debugPrint(
-        'Berhasil subscribe ke topic: pengumuman-kampus',
-      );
-    } else {
-      debugPrint(
-        'Web: topic subscription dilewati.',
-      );
+    final token = await FirebaseMessaging.instance.getToken(
+      vapidKey: kIsWeb ? vapidKey : null,
+    );
+    if (token != null) {
+      await _registerToken(token, onToken);
     }
   }
 
-  /// Mendengarkan pesan ketika aplikasi sedang foreground.
   void listenForeground() {
-    FirebaseMessaging.onMessage.listen(
-      (message) async {
-        debugPrint('==============================');
-        debugPrint('FCM FOREGROUND MESSAGE');
-        debugPrint('Message ID : ${message.messageId}');
-        debugPrint(
-          'Title      : ${message.notification?.title}',
-        );
-        debugPrint(
-          'Body       : ${message.notification?.body}',
-        );
-        debugPrint('Data       : ${message.data}');
-
-        // Mengambil route dari data FCM.
-        final route = message.data['route'] ?? '/';
-
-        // Mengambil ID pengumuman dari data FCM.
-        final id = message.data['id'] ?? '';
-
-        debugPrint('Route      : $route');
-        debugPrint('ID         : $id');
-        debugPrint('==============================');
-
-        // Detail notifikasi Android.
-        const androidDetails = AndroidNotificationDetails(
+    FirebaseMessaging.onMessage.listen((message) async {
+      final route = notificationRouteFromData(message.data);
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
           'pengumuman',
           'Pengumuman Kampus',
-          channelDescription:
-              'Notifikasi pengumuman kampus',
+          channelDescription: 'Notifikasi pengumuman kampus',
           importance: Importance.high,
           priority: Priority.high,
-        );
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
 
-        // Detail notifikasi.
-        const notificationDetails = NotificationDetails(
-          android: androidDetails,
-        );
-
-        // Mengambil data notification.
-        final notification = message.notification;
-
-        // Menampilkan local notification.
-        await _localNotifications.show(
-          id: message.hashCode,
-          title: notification?.title ?? 'Pengumuman',
-          body: notification?.body ?? '',
-          notificationDetails: notificationDetails,
-          payload: route,
-        );
-      },
-    );
+      await _localNotifications.show(
+        id: message.hashCode,
+        title: message.notification?.title ?? 'Pengumuman',
+        body: message.notification?.body ?? '',
+        notificationDetails: details,
+        payload: route,
+      );
+    });
   }
 
-  /// Menangani notifikasi saat aplikasi dibuka dari kondisi
-  /// terminated.
+  Future<void> _registerToken(
+    String token,
+    Future<void> Function(String token) onToken,
+  ) async {
+    try {
+      await onToken(token);
+    } on DioException catch (error) {
+      debugPrint(
+        'FCM token registration failed '
+        '(HTTP ${error.response?.statusCode ?? 'network error'}).',
+      );
+    }
+  }
+
+  void _handleMessageTap(RemoteMessage message) {
+    _navigateToRoute(notificationRouteFromData(message.data));
+  }
+
+  void _navigateToRoute(String? route) {
+    if (route != null) {
+      onNavigate(route);
+    }
+  }
+
   Future<void> handleTerminated() async {
-    final initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint('==============================');
-      debugPrint('FCM OPENED FROM TERMINATED');
-      debugPrint(
-        'Message ID : ${initialMessage.messageId}',
-      );
-      debugPrint(
-        'Title      : ${initialMessage.notification?.title}',
-      );
-      debugPrint(
-        'Body       : ${initialMessage.notification?.body}',
-      );
-      debugPrint(
-        'Data       : ${initialMessage.data}',
-      );
-
-      final route =
-          initialMessage.data['route'] ?? '/';
-
-      final id =
-          initialMessage.data['id'] ?? '';
-
-      debugPrint('Route      : $route');
-      debugPrint('ID         : $id');
-      debugPrint('==============================');
-
-      // Menunggu sebentar sampai aplikasi siap melakukan navigasi.
-      Future.delayed(
-        const Duration(milliseconds: 500),
-        () {
-          onNavigate(route);
-        },
-      );
-    }
-
-    // Menangani deep link yang masih tersimpan.
-    if (pendingDeepLink != null) {
-      final route = pendingDeepLink!;
-
-      Future.delayed(
-        const Duration(milliseconds: 500),
-        () {
-          onNavigate(route);
-        },
-      );
+      _handleMessageTap(initialMessage);
     }
   }
 
-  /// Subscribe ke topic pengumuman kampus.
   Future<void> subscribeToCampusTopic() async {
     if (kIsWeb) {
-      debugPrint(
-        'Web: subscribeToCampusTopic dilewati.',
-      );
+      debugPrint('FCM topic subscription is not supported on web.');
       return;
     }
 
-    await FirebaseMessaging.instance.subscribeToTopic(
-      'pengumuman-kampus',
-    );
-
-    debugPrint(
-      'Subscribe topic berhasil: pengumuman-kampus',
-    );
+    await FirebaseMessaging.instance.subscribeToTopic('pengumuman-kampus');
   }
 
-  /// Unsubscribe dari topic pengumuman kampus.
   Future<void> unsubscribeFromCampusTopic() async {
     if (kIsWeb) {
-      debugPrint(
-        'Web: unsubscribeToCampusTopic dilewati.',
-      );
+      debugPrint('FCM topic unsubscription is not supported on web.');
       return;
     }
 
-    await FirebaseMessaging.instance.unsubscribeFromTopic(
-      'pengumuman-kampus',
-    );
-
-    debugPrint(
-      'Unsubscribe topic berhasil: pengumuman-kampus',
-    );
+    await FirebaseMessaging.instance.unsubscribeFromTopic('pengumuman-kampus');
   }
 }

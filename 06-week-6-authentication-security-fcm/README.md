@@ -73,3 +73,14 @@
 
 <li> Data route digunakan untuk menentukan halaman tujuan. Pada Flutter Web, route dapat diakses melalui /#/pengumuman/3. Halaman tujuan berhasil menampilkan ID pengumuman berdasarkan data id yang dikirim.</li><br>
 
+## AI Challenge
+
+### AI Verification Checklist
+
+- **Background handler top-level dengan `@pragma('vm:entry-point')`?** Ya. `firebaseMessagingBackgroundHandler` adalah fungsi top-level, bukan method kelas.
+- **`onTokenRefresh` mengirim token baru ke backend?** Ya. Token saat ini dan token baru dikirim dengan `POST /devices`; bukan hanya dicetak ke log.
+- **Foreground memakai local notification manual?** Ya. `onMessage` menampilkan notifikasi melalui `flutter_local_notifications`.
+- **Klik dari foreground/background/terminated menuju rute yang benar?** Jalur dan tabel pengujian dicatat di [docs/ai-verification.md](./docs/ai-verification.md).
+- **Token/secret di-hardcode atau di-log penuh?** Tidak. Token tidak di-hardcode atau dicetak. URL API dan VAPID key dikonfigurasi saat run; VAPID key adalah public key.
+- **Keputusan final dan alasan teknis:** gunakan local notification manual agar notifikasi foreground konsisten dan tidak ada banner ganda di iOS; daftarkan token baru ke backend agar token lifecycle tersinkron. Detail platform, keputusan, dan bukti verifikasi: [docs/ai-verification.md](./docs/ai-verification.md).
+

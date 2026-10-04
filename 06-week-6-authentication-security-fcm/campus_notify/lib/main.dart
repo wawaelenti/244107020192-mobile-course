@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'data/api_client.dart';
 import 'firebase_options.dart';
 import 'messaging/push_service.dart';
 import 'pages/announcement_page.dart';
@@ -121,24 +122,22 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initializeFCM() async {
+    final apiClient = buildApiClient(
+      container.read(tokenStoreProvider),
+      container.read(authRepositoryProvider),
+    );
     final pushService = PushService(
       onNavigate: (route) {
-        debugPrint('================================');
-        debugPrint('NAVIGASI DARI NOTIFICATION');
-        debugPrint('ROUTE: $route');
-        debugPrint('================================');
-
         appRouter.go(route);
       },
     );
 
     await pushService.initialize(
       onToken: (token) async {
-        final preview = token.length > 12
-            ? '${token.substring(0, 12)}...'
-            : token;
-
-        debugPrint('FCM Token: $preview');
+        await apiClient.post<void>(
+          '/devices',
+          data: {'token': token},
+        );
       },
     );
   }
