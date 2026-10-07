@@ -143,3 +143,26 @@
 | [✓] | flutter analyze bersih dan semua test lulus.                            |
 |     |                                                                                          |
 
+## Tugas, refleksi, dan referensi
+
+## Mini project / Industry Challenge
+
+### Hasil Implementasi
+
+Setelah banner diklik, aplikasi masuk ke halaman/rute tujuan yang benar yaitu /pengumuman/3.
+
+<p align="center"><img src="screenshots/deep_link.png"></p>
+
+## Refleksi
+
+<li><b> Mengapa refresh token tidak boleh disimpan di SharedPreferences? Apa risikonya bila bocor?</b><br>
+Karena penyimpanannya tidak dirancang untuk data rahasia. Jika bocor misalnya dari perangkat yang di-root atau cadangan yang tidak aman, orang lain bisa meminta access token baru dan menyamar sebagai pengguna. Simpan di secure storage.</li>
+
+<li><b> Apa yang rusak bila onTokenRefresh diabaikan selama satu semester perkuliahan?</b><br>
+Jika onTokenRefresh diabaikan, token baru tidak tersinkron ke backend. Akibatnya, notifikasi kampus bisa dikirim ke token lama dan gagal diterima di perangkat.</li>
+
+<li><b> Kapan memakai topik dan kapan memakai token perangkat? Beri contoh pesan kampus untuk masing-masing.</b><br>
+Topik dipakai untuk pesan massal, misalnya pengumuman libur untuk semua mahasiswa. Token perangkat dipakai untuk pesan ke perangkat tertentu, misalnya pemberitahuan pribadi bahwa akun mahasiswa perlu melengkapi data.</li>
+
+<li><b> Bagian mana dari draf AI yang Anda tolak atau perbaiki, dan mengapa?</b><br>
+Draf AI perlu dikoreksi jika menyarankan menyimpan atau mencetak token secara terbuka, atau hanya mencatat token baru tanpa mengirimkannya ke backend. Saya memilih secure storage dan sinkronisasi token baru ke backend.</li>
