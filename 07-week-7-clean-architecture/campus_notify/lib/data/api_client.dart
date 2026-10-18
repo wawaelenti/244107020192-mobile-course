@@ -69,10 +69,7 @@ Dio buildApiClient(
             ...request.headers,
             'Authorization': ['Bearer', renewedAccess].join(' '),
           },
-          extra: {
-            ...request.extra,
-            _retriedAfterRefreshKey: true,
-          },
+          extra: {...request.extra, _retriedAfterRefreshKey: true},
         );
 
         try {

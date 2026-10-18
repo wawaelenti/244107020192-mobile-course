@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/auth_provider.dart';
 
 class HomePage extends ConsumerWidget {
@@ -8,9 +9,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campus Notify'),
-      ),
+      appBar: AppBar(title: const Text('Campus Notify')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -25,19 +24,13 @@ class HomePage extends ConsumerWidget {
               const SizedBox(height: 20),
               const Text(
                 'Login berhasil',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Selamat datang di Campus Notify',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.grey, fontSize: 16),
               ),
               const SizedBox(height: 28),
               SizedBox(
