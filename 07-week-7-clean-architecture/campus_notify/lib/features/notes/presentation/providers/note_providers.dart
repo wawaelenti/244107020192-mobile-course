@@ -1,5 +1,5 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../data/providers/note_data_providers.dart';
 import '../../domain/usecases/get_notes.dart';
 import '../../domain/entities/note.dart';
