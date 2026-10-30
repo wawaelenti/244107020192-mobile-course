@@ -1,4 +1,5 @@
 import '../routes.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -11,17 +12,12 @@ final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
 
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-  RemoteMessage message,
-) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
 class PushService {
-  PushService({
-    required this.onRouteRequested,
-    this.onTokenAvailable,
-  });
+  PushService({required this.onRouteRequested, this.onTokenAvailable});
 
   static const _channelId = 'campus_announcements';
   static const _channelName = 'Pengumuman kampus';
@@ -50,8 +46,7 @@ class PushService {
 
       await _localNotifications.initialize(
         settings: initializationSettings,
-        onDidReceiveNotificationResponse:
-            _handleLocalNotificationResponse,
+        onDidReceiveNotificationResponse: _handleLocalNotificationResponse,
       );
 
       if (Platform.isAndroid) {
@@ -64,7 +59,8 @@ class PushService {
 
         await _localNotifications
             .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
+              AndroidFlutterLocalNotificationsPlugin
+            >()
             ?.createNotificationChannel(channel);
       }
 
@@ -78,8 +74,7 @@ class PushService {
         );
       }
 
-      _tokenRefreshSubscription =
-          _messaging.onTokenRefresh.listen((token) {
+      _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((token) {
         unawaited(_notifyTokenAvailable(token));
       });
 
@@ -87,21 +82,18 @@ class PushService {
         unawaited(_showForegroundNotification(message));
       });
 
-      _messageOpenedSubscription =
-          FirebaseMessaging.onMessageOpenedApp.listen(
+      _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
         _handleMessageNavigation,
       );
 
       await getToken();
       await subscribeToAnnouncements();
 
-      final launchDetails =
-          await _localNotifications.getNotificationAppLaunchDetails();
+      final launchDetails = await _localNotifications
+          .getNotificationAppLaunchDetails();
 
       if (launchDetails?.didNotificationLaunchApp ?? false) {
-        _handleLocalNotificationResponse(
-          launchDetails?.notificationResponse,
-        );
+        _handleLocalNotificationResponse(launchDetails?.notificationResponse);
       }
 
       final initialMessage = await _messaging.getInitialMessage();
@@ -120,11 +112,7 @@ class PushService {
   }
 
   Future<NotificationSettings> requestPermission() {
-    return _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    return _messaging.requestPermission(alert: true, badge: true, sound: true);
   }
 
   Future<String?> getToken() async {
@@ -170,9 +158,7 @@ class PushService {
     }
   }
 
-  Future<void> _showForegroundNotification(
-    RemoteMessage message,
-  ) async {
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
 
@@ -198,9 +184,7 @@ class PushService {
     );
   }
 
-  void _handleLocalNotificationResponse(
-    NotificationResponse? response,
-  ) {
+  void _handleLocalNotificationResponse(NotificationResponse? response) {
     _navigateToRoute(response?.payload);
   }
 

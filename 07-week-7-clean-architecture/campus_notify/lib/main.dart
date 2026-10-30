@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/announcement_page.dart';
@@ -15,9 +16,11 @@ import 'routes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -41,11 +44,9 @@ class _MyAppState extends ConsumerState<MyApp> {
     router = GoRouter(
       redirect: (context, state) {
         final loggedIn = ref.read(authStateProvider).value ?? false;
-
         final goingLogin = state.matchedLocation == loginRoute;
 
         if (!loggedIn && !goingLogin) return loginRoute;
-
         if (loggedIn && goingLogin) return homeRoute;
 
         return null;
@@ -63,7 +64,9 @@ class _MyAppState extends ConsumerState<MyApp> {
     );
 
     if (widget.enablePush) {
-      // _pushService = PushService(onRouteRequested: (route) => router.go(route));
+      // _pushService = PushService(
+      //   onRouteRequested: (route) => router.go(route),
+      // );
       // unawaited(_pushService!.initialize());
     }
   }
@@ -71,9 +74,11 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void dispose() {
     final pushService = _pushService;
+
     if (pushService != null) {
       unawaited(pushService.dispose());
     }
+
     router.dispose();
     super.dispose();
   }
