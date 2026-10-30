@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/note.dart';
 import '../data/repositories/note_repository.dart';
 import '../data/sync.dart';
+import '../domain/filter_notes.dart';
 import '../widgets/note_tile.dart';
 
 final noteRepositoryProvider = Provider<NoteRepository>(
@@ -18,13 +19,24 @@ final dirtyCountProvider = FutureProvider<int>((ref) {
   return ref.watch(noteRepositoryProvider).countDirty();
 });
 
-class NotesPage extends ConsumerWidget {
+class NotesPage extends ConsumerStatefulWidget {
   const NotesPage({super.key});
 
-  Future<void> _addNote(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  @override
+  ConsumerState<NotesPage> createState() => _NotesPageState();
+}
+
+class _NotesPageState extends ConsumerState<NotesPage> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addNote(BuildContext context, WidgetRef ref) async {
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
 
@@ -38,15 +50,11 @@ class NotesPage extends ConsumerWidget {
             children: [
               TextField(
                 controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Judul',
-                ),
+                decoration: const InputDecoration(labelText: 'Judul'),
               ),
               TextField(
                 controller: bodyController,
-                decoration: const InputDecoration(
-                  labelText: 'Isi catatan',
-                ),
+                decoration: const InputDecoration(labelText: 'Isi catatan'),
               ),
             ],
           ),
@@ -63,7 +71,9 @@ class NotesPage extends ConsumerWidget {
                   return;
                 }
 
-                await ref.read(noteRepositoryProvider).addNote(
+                await ref
+                    .read(noteRepositoryProvider)
+                    .addNote(
                       title: titleController.text.trim(),
                       body: bodyController.text.trim(),
                     );
@@ -86,7 +96,8 @@ class NotesPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final notes = ref.watch(notesProvider);
     final dirtyCount = ref.watch(dirtyCountProvider);
 
@@ -96,9 +107,7 @@ class NotesPage extends ConsumerWidget {
         actions: [
           Center(
             child: dirtyCount.when(
-              data: (count) => Text(
-                'Belum sync: $count',
-              ),
+              data: (count) => Text('Belum sync: $count'),
               loading: () => const Text('...'),
               error: (_, _) => const Text('Error'),
             ),
@@ -119,43 +128,83 @@ class NotesPage extends ConsumerWidget {
         ],
       ),
 
-      body: notes.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              key: const ValueKey('notes-search-field'),
+              controller: _searchController,
+              onChanged: (query) {
+                setState(() {
+                  _searchQuery = query;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Cari berdasarkan judul',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Hapus pencarian',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                        icon: const Icon(Icons.clear),
+                      ),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+          Expanded(
+            child: notes.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stackTrace) =>
+                  Center(child: Text('Terjadi error: $error')),
+              data: (items) {
+                if (items.isEmpty) {
+                  return const Center(child: Text('Belum ada catatan'));
+                }
 
-        error: (error, stackTrace) => Center(
-          child: Text('Terjadi error: $error'),
-        ),
+                final filteredNotes = filterNotes(
+                  items,
+                  _searchQuery,
+                  (note) => note.title,
+                );
 
-        data: (items) {
-          if (items.isEmpty) {
-            return const Center(
-              child: Text('Belum ada catatan'),
-            );
-          }
+                if (filteredNotes.isEmpty) {
+                  return const Center(
+                    child: Text('Tidak ada catatan yang cocok'),
+                  );
+                }
 
-          return ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final note = items[index];
+                return ListView.builder(
+                  itemCount: filteredNotes.length,
+                  itemBuilder: (context, index) {
+                    final note = filteredNotes[index];
 
-              return NoteTile(
-                note: note,
-                onDelete: () async {
-                  if (note.id == null) return;
+                    return NoteTile(
+                      note: note,
+                      onDelete: () async {
+                        if (note.id == null) return;
 
-                  await ref
-                      .read(noteRepositoryProvider)
-                      .deleteNote(note.id!);
+                        await ref
+                            .read(noteRepositoryProvider)
+                            .deleteNote(note.id!);
 
-                  ref.invalidate(notesProvider);
-                  ref.invalidate(dirtyCountProvider);
-                },
-              );
-            },
-          );
-        },
+                        ref.invalidate(notesProvider);
+                        ref.invalidate(dirtyCountProvider);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       floatingActionButton: FloatingActionButton(

@@ -1,21 +1,20 @@
-# AI log - Praktikum 1: Prompt dan context engineering
+# AI log - Praktikum 1 dan 2
 
-## Tujuan
+Project: `week5_offline_notes`, Flutter dengan Riverpod `^3.4.3` dan SQLite
+(`sqflite ^2.4.4`).
 
-Menulis prompt lima slot dan memilih konteks secukupnya untuk tugas search
-judul catatan pada project `week5_offline_notes`. Praktikum ini berfokus pada
-prompt; implementasi search disimpan untuk Praktikum 2.
+## Praktikum 1 - Prompt dan context engineering
 
-## Prompt buruk
+### Prompt buruk
 
 ```text
 Buatkan search notes yang keren.
 ```
 
-Prompt ini tidak menentukan peran, arsitektur, batas perubahan, empty state,
-atau bentuk hasil yang bisa diverifikasi.
+Tidak menjelaskan peran, konteks, batas perubahan, empty state, maupun bentuk
+hasil yang bisa diverifikasi.
 
-## Prompt final (prompt mentah)
+### Prompt final lima slot
 
 ```text
 Peran: senior Flutter developer.
@@ -32,61 +31,78 @@ test untuk hasil cocok dan satu test untuk hasil kosong, serta langkah uji
 manual. Jelaskan asumsi yang belum pasti dan jangan mengarang API/package.
 ```
 
-## Konteks yang dipilih
+Konteks yang dipilih: `lib/pages/notes_page.dart`,
+`lib/data/local/note.dart`, `lib/data/repositories/note_repository.dart`,
+struktur folder relevan, dan versi dependency. Repository menyediakan
+`fetchNotes()`, `addNote()`, `deleteNote()`, dan `countDirty()`. Tidak ada
+secret, token, password, atau seluruh isi repository yang disertakan.
 
-Struktur relevan:
+## Praktikum 2 - Generate dan verifikasi search
+
+### Prompt Praktikum 2
 
 ```text
-lib/
-  data/
-    local/note.dart
-    repositories/note_repository.dart
-  pages/notes_page.dart
-  widgets/note_tile.dart
+Peran: senior Flutter developer.
+Konteks: lanjutkan week5_offline_notes. NotesPage adalah ConsumerWidget
+Riverpod yang membaca List<Note> dari notesProvider. Note memiliki title.
+Pertahankan data lokal/offline dan pola repository yang ada.
+Tugas: tambahkan pencarian berdasarkan judul catatan dan empty state jika
+query tidak cocok.
+Batas: pencarian case-insensitive, query kosong menampilkan semua catatan,
+jangan panggil SQLite dari UI, jangan ubah repository/schema atau fitur lain.
+Pastikan fungsi filter murni di lib/domain tanpa import Flutter, Dio, atau
+SQLite. Tulis unit test untuk judul cocok dan tidak cocok serta widget test
+empty state.
+Output: perubahan ringkas, test, dan langkah verifikasi.
 ```
 
-Kontrak repository yang ditempel:
+### Output awal AI dan verifikasi
+
+Draft awal filter mencari teks dengan pencocokan case-sensitive:
 
 ```dart
-Future<List<Note>> fetchNotes();
-Future<Note> addNote({required String title, String body = ''});
-Future<void> deleteNote(int id);
-Future<int> countDirty();
+return notes
+    .where((note) => titleOf(note).contains(normalizedQuery))
+    .toList();
 ```
 
-Model yang relevan:
+Test merah dibuat sebelum memperbaiki draft: judul `Belanja Mingguan` dan
+`Catatan belanja` dicari dengan query `belanja`. Test awal gagal karena hanya
+1 catatan yang ditemukan, padahal diharapkan 2. Filter kemudian dinormalisasi
+ke lowercase pada query dan judul.
 
-```dart
-final String title;
-final String body;
-```
+### Implementasi yang diterima
 
-Versi dependency yang relevan dari `pubspec.yaml`:
+- `lib/domain/filter_notes.dart`: fungsi generik `filterNotes<T>` menerima
+  daftar dan callback untuk mengambil judul. Domain tidak mengimpor model data
+  atau package UI/storage.
+- `lib/pages/notes_page.dart`: mengelola query dan menampilkan hasil; empty
+  state pencarian dibedakan dari state database kosong.
+- `test/search_filter_test.dart`: menguji kecocokan case-insensitive, query
+  kosong, dan query yang tidak cocok.
+- `test/notes_search_test.dart`: menguji pesan empty state tanpa mengakses
+  database asli (menggunakan repository palsu).
 
-```yaml
-flutter_riverpod: ^3.4.3
-sqflite: ^2.4.4
-```
+### Enam langkah verifikasi
 
-Konteks sengaja dibatasi pada halaman catatan, model, kontrak repository,
-struktur folder, dan dependency yang berhubungan. Tidak menyertakan seluruh
-repository, token, API key, password, atau data pribadi.
-
-## Output Praktikum 1
-
-Output tahap ini adalah prompt lima slot di atas dan konteks yang dipilih.
-Tidak ada kode search atau test implementasi yang dibuat sebagai bagian
-Praktikum 1; keduanya merupakan pekerjaan Praktikum 2.
-
-## Evaluasi prompt
-
-| Kriteria | Hasil |
+| Langkah | Hasil |
 | --- | --- |
-| Peran jelas | Senior Flutter developer |
-| Konteks konkret | Riverpod, SQLite, `NoteRepository`, field `Note`, dan kebutuhan offline |
-| Tugas terukur | Search berdasarkan judul dengan empty state |
-| Batas perubahan | Tidak mengakses SQLite dari widget dan tidak mengubah fitur lain |
-| Output dapat diverifikasi | File/implementasi yang diusulkan, dua test, dan langkah uji manual |
+| Membaca perubahan dan memeriksa asumsi | Filter menerima judul via callback; tidak menyimpan query dan tidak mengakses database. |
+| Memeriksa import domain | `filter_notes.dart` tidak memiliki import Flutter, Dio, SQLite, atau data layer. |
+| Memeriksa API | Menggunakan `trim`, `toLowerCase`, `contains`, callback Dart, dan API Flutter/Riverpod yang sudah dipakai project; tidak menambah dependency. |
+| `flutter analyze` | Lulus: `No issues found!`. |
+| Test berhasil dan test gagal untuk search | Test awal case-sensitive gagal; setelah perbaikan seluruh 8 test pada `flutter test` lulus, termasuk hasil cocok, kosong, tak cocok, dan empty state widget. |
+| Uji manual query kosong/cocok/tidak cocok | Tidak dijalankan karena project tidak boleh dijalankan dalam sesi ini. Langkah uji disediakan di README. |
 
-Prompt final lebih spesifik daripada prompt buruk, menghindari pengiriman
-secret, dan memberi AI kontrak nyata dari project alih-alih meminta asumsi API.
+### Keputusan
+
+| Saran | Keputusan | Alasan |
+| --- | --- | --- |
+| Letakkan filter pada fungsi domain murni. | Terima | Mudah diuji secara unit dan tidak mencampur filter dengan UI/database. |
+| Simpan query ke SQLite atau SharedPreferences. | Tolak | Query pencarian hanya state sementara UI, bukan data catatan atau preferensi. |
+| Gunakan exact/case-sensitive match. | Tolak | Test query `belanja` terhadap judul dengan variasi kapitalisasi gagal; pencarian lowercase sesuai kebutuhan search. |
+| Bedakan database kosong dari hasil search kosong. | Terima | Pengguna mendapat pesan yang sesuai untuk belum memiliki catatan vs tidak menemukan kecocokan. |
+
+## Privasi
+
+Tidak ada token FCM, JWT, API key, password, atau kredensial yang digunakan.
