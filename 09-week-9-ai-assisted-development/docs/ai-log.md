@@ -91,7 +91,7 @@ ke lowercase pada query dan judul.
 | Memeriksa import domain                   | `filter_notes.dart` tidak memiliki import Flutter, Dio, SQLite, atau data layer.                                                                             |
 | Memeriksa API                             | Menggunakan `trim`, `toLowerCase`, `contains`, callback Dart, dan API Flutter/Riverpod yang sudah dipakai project; tidak menambah dependency.                |
 | `flutter analyze`                         | Lulus: `No issues found!`.                                                                                                                                   |
-| Test berhasil dan test gagal untuk search | Test awal case-sensitive gagal; setelah perbaikan seluruh 8 test pada `flutter test` lulus, termasuk hasil cocok, kosong, tak cocok, dan empty state widget. |
+| Test berhasil dan test gagal untuk search | Test awal case-sensitive gagal; setelah perbaikan seluruh 9 test pada `flutter test` lulus, termasuk hasil cocok, kosong, tak cocok, dan empty state widget. |
 | Uji manual query kosong/cocok/tidak cocok | Tidak dijalankan karena project tidak boleh dijalankan dalam sesi ini. Langkah uji disediakan di README.                                                     |
 
 ### Keputusan
@@ -147,7 +147,7 @@ UI dan logika filter sudah terisolasi serta dapat diuji.
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `flutter analyze`                     | Lulus, tidak ada issue.                                                                                                                    |
 | `dart format --set-exit-if-changed .` | Tidak selesai karena path generated yang hilang di `build/`. Pemeriksaan format terfokus pada file Dart yang diubah lulus tanpa perubahan. |
-| `flutter test`                        | Lulus, seluruh 8 test berhasil.                                                                                                            |
+| `flutter test`                        | Lulus, seluruh 9 test berhasil.                                                                                                            |
 | Menjalankan aplikasi / uji manual     | Tidak dilakukan sesuai permintaan; yang dijalankan hanya analyze, pemeriksaan format, dan test akhir.                                      |
 
 ### Keputusan refactor
@@ -211,3 +211,73 @@ yang ditemukan tanpa menyentuh database atau menjalankan aplikasi.
 | `test/notes_search_test.dart`  | Tambahkan test UI untuk hasil cocok dan clear.                                          | Terima + refactor.                         | Kekurangan coverage terbukti; widget test baru menguji hasil pencarian dan pemulihan daftar setelah clear.                                               |
 | `README.md`                    | Ringkas hasil AI Challenge dan hasil verifikasi.                                        | Terima + dokumentasikan.                   | README merangkum hasil dan merujuk ke catatan review lengkap ini.                                                                                        |
 | `docs/ai-log.md`               | Simpan prompt, output review, bukti, dan keputusan.                                     | Terima + dokumentasikan.                   | Menjadi catatan audit tugas praktikum; tidak mengubah perilaku aplikasi.                                                                                 |
+
+## Refactoring Challenge dan checklist verifikasi
+
+### Refactor
+
+Fungsi search yang semula berpotensi bercampur di widget diisolasi pada
+`lib/domain/filter_notes.dart`:
+
+```dart
+List<T> filterNotes<T>(
+  List<T> notes,
+  String query,
+  String Function(T) titleOf,
+)
+```
+
+Fungsi kecil ini memangkas aturan search menjadi unit yang bisa diuji tanpa
+widget, Riverpod, atau database. Callback `titleOf` menjaga domain tetap
+agnostik terhadap model `Note`. `NotesPage` tetap mengatur input dan tampilan;
+fitur tambah, hapus, dan sync tidak ikut dipindahkan karena bukan lingkup
+refactor search.
+
+Pemisahan ini memenuhi tujuan mengecilkan hasil AI menjadi fungsi/use case
+terfokus. Bukan seluruh `NotesPage` yang harus kurang dari 80 baris: halaman
+tersebut memiliki tanggung jawab lain yang sudah berada di luar aturan filter.
+
+### Batas import
+
+- `lib/domain/filter_notes.dart` tidak mengimpor Flutter, Riverpod, Dio,
+  SQLite, atau `data/`.
+- `lib/pages/notes_page.dart` memanggil fungsi domain untuk filter; akses baca,
+  hapus, dan sync tetap melalui provider/repository yang sudah ada.
+- `test/search_filter_test.dart` memverifikasi aturan domain tanpa database.
+- `test/notes_search_test.dart` memakai fake repository untuk widget test.
+
+### Checklist verifikasi mandiri
+
+- [x] Prompt lima slot dan konteks project tercatat di bagian Praktikum 1.
+- [x] Search berada pada fungsi domain murni yang ringkas dan teruji.
+- [x] Tidak ada import lintas layer pada fungsi domain.
+- [x] `flutter analyze` lulus tanpa issue.
+- [x] `flutter test test/search_filter_test.dart`: 3 test lulus.
+- [x] `flutter test test/notes_search_test.dart`: 2 widget test lulus.
+- [x] `flutter test`: semua 9 test lulus.
+- [x] Satu temuan AI terbukti melalui test dan diperbaiki; satu saran ditolak
+  dengan alasan teknis pada tabel AI Challenge.
+- [x] Mampu menjelaskan aturan filter: trim query; query kosong menghasilkan
+  semua catatan; selain itu, judul dan query dibandingkan secara lowercase.
+- [x] Screenshot `flutter analyze` dan `flutter test` tersedia di folder
+  screenshots dan ditautkan pada README.
+
+### Perintah dan hasil aktual
+
+```powershell
+flutter analyze
+# No issues found!
+
+flutter test test/search_filter_test.dart
+# All tests passed! (3 tests)
+
+flutter test test/notes_search_test.dart
+# All tests passed! (2 widget tests)
+
+flutter test
+# All tests passed! (9 tests)
+```
+
+Pemeriksaan format untuk source dan test fitur juga lulus tanpa perubahan.
+Screenshot bukti analyze dan test tersedia di folder `screenshots` dan
+ditautkan dari README. Aplikasi tidak dijalankan.
