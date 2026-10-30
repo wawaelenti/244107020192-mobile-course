@@ -94,3 +94,21 @@ dan seluruh test lulus. Pemeriksaan `dart format --set-exit-if-changed .` untuk
 seluruh project tidak dapat menyelesaikan directory listing karena ada path
 generated yang hilang di `build/`; pemeriksaan format pada file Dart yang
 diubah lulus. Aplikasi tidak dijalankan; uji manual tidak dilakukan.
+
+## AI Challenge: review search
+
+Review dilakukan dengan fokus kebenaran, arsitektur, dan test. Satu temuan
+terkonfirmasi: widget test sebelumnya hanya menguji empty state, belum menguji
+hasil pencarian yang cocok dan aksi clear. Test untuk hasil cocok + clear
+ditambahkan; seluruh 9 test lulus. Dua saran lain—optimasi query database untuk
+koleksi besar dan memindahkan query ke Riverpod—ditolak karena belum ada bukti
+masalah performa, sedangkan query saat ini hanya state sementara halaman.
+
+Prompt, tiga temuan lengkap dan tabel usulan-vs-keputusan per file dicatat di [docs/ai-log.md](./docs/ai-log.md).
+
+### Bukti verifikasi AI Challenge
+
+- `flutter analyze`: lulus, tidak ada issue.
+- `flutter test`: lulus, seluruh 9 test berhasil setelah widget test ditambahkan.
+- `dart format --set-exit-if-changed test/notes_search_test.dart`: lulus tanpa perubahan setelah format.
+- `test/notes_search_test.dart`: bukti integrasi hasil cocok, no-match, serta aksi clear menggunakan fake repository.

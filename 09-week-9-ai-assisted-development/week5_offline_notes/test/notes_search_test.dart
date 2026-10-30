@@ -19,6 +19,40 @@ class _FakeNoteRepository extends NoteRepository {
 }
 
 void main() {
+  testWidgets('pencarian cocok dan tombol clear memulihkan daftar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noteRepositoryProvider.overrideWithValue(
+            _FakeNoteRepository([
+              Note(title: 'Week 9', updatedAt: DateTime(2026, 10, 30)),
+              Note(title: 'Week 6', updatedAt: DateTime(2026, 10, 29)),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: NotesPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('notes-search-field')),
+      'week 9',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Week 9'), findsOneWidget);
+    expect(find.text('Week 6'), findsNothing);
+
+    await tester.tap(find.byTooltip('Hapus pencarian'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Week 9'), findsOneWidget);
+    expect(find.text('Week 6'), findsOneWidget);
+  });
+
   testWidgets('pencarian tanpa hasil menampilkan empty state', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

@@ -85,23 +85,23 @@ ke lowercase pada query dan judul.
 
 ### Enam langkah verifikasi
 
-| Langkah | Hasil |
-| --- | --- |
-| Membaca perubahan dan memeriksa asumsi | Filter menerima judul via callback; tidak menyimpan query dan tidak mengakses database. |
-| Memeriksa import domain | `filter_notes.dart` tidak memiliki import Flutter, Dio, SQLite, atau data layer. |
-| Memeriksa API | Menggunakan `trim`, `toLowerCase`, `contains`, callback Dart, dan API Flutter/Riverpod yang sudah dipakai project; tidak menambah dependency. |
-| `flutter analyze` | Lulus: `No issues found!`. |
+| Langkah                                   | Hasil                                                                                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Membaca perubahan dan memeriksa asumsi    | Filter menerima judul via callback; tidak menyimpan query dan tidak mengakses database.                                                                      |
+| Memeriksa import domain                   | `filter_notes.dart` tidak memiliki import Flutter, Dio, SQLite, atau data layer.                                                                             |
+| Memeriksa API                             | Menggunakan `trim`, `toLowerCase`, `contains`, callback Dart, dan API Flutter/Riverpod yang sudah dipakai project; tidak menambah dependency.                |
+| `flutter analyze`                         | Lulus: `No issues found!`.                                                                                                                                   |
 | Test berhasil dan test gagal untuk search | Test awal case-sensitive gagal; setelah perbaikan seluruh 8 test pada `flutter test` lulus, termasuk hasil cocok, kosong, tak cocok, dan empty state widget. |
-| Uji manual query kosong/cocok/tidak cocok | Tidak dijalankan karena project tidak boleh dijalankan dalam sesi ini. Langkah uji disediakan di README. |
+| Uji manual query kosong/cocok/tidak cocok | Tidak dijalankan karena project tidak boleh dijalankan dalam sesi ini. Langkah uji disediakan di README.                                                     |
 
 ### Keputusan
 
-| Saran | Keputusan | Alasan |
-| --- | --- | --- |
-| Letakkan filter pada fungsi domain murni. | Terima | Mudah diuji secara unit dan tidak mencampur filter dengan UI/database. |
-| Simpan query ke SQLite atau SharedPreferences. | Tolak | Query pencarian hanya state sementara UI, bukan data catatan atau preferensi. |
-| Gunakan exact/case-sensitive match. | Tolak | Test query `belanja` terhadap judul dengan variasi kapitalisasi gagal; pencarian lowercase sesuai kebutuhan search. |
-| Bedakan database kosong dari hasil search kosong. | Terima | Pengguna mendapat pesan yang sesuai untuk belum memiliki catatan vs tidak menemukan kecocokan. |
+| Saran                                             | Keputusan | Alasan                                                                                                              |
+| ------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| Letakkan filter pada fungsi domain murni.         | Terima    | Mudah diuji secara unit dan tidak mencampur filter dengan UI/database.                                              |
+| Simpan query ke SQLite atau SharedPreferences.    | Tolak     | Query pencarian hanya state sementara UI, bukan data catatan atau preferensi.                                       |
+| Gunakan exact/case-sensitive match.               | Tolak     | Test query `belanja` terhadap judul dengan variasi kapitalisasi gagal; pencarian lowercase sesuai kebutuhan search. |
+| Bedakan database kosong dari hasil search kosong. | Terima    | Pengguna mendapat pesan yang sesuai untuk belum memiliki catatan vs tidak menemukan kecocokan.                      |
 
 ## Privasi
 
@@ -143,17 +143,71 @@ UI dan logika filter sudah terisolasi serta dapat diuji.
 
 ### Verifikasi akhir Praktikum 3
 
-| Pemeriksaan | Hasil |
-| --- | --- |
-| `flutter analyze` | Lulus, tidak ada issue. |
+| Pemeriksaan                           | Hasil                                                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `flutter analyze`                     | Lulus, tidak ada issue.                                                                                                                    |
 | `dart format --set-exit-if-changed .` | Tidak selesai karena path generated yang hilang di `build/`. Pemeriksaan format terfokus pada file Dart yang diubah lulus tanpa perubahan. |
-| `flutter test` | Lulus, seluruh 8 test berhasil. |
-| Menjalankan aplikasi / uji manual | Tidak dilakukan sesuai permintaan; yang dijalankan hanya analyze, pemeriksaan format, dan test akhir. |
+| `flutter test`                        | Lulus, seluruh 8 test berhasil.                                                                                                            |
+| Menjalankan aplikasi / uji manual     | Tidak dilakukan sesuai permintaan; yang dijalankan hanya analyze, pemeriksaan format, dan test akhir.                                      |
 
 ### Keputusan refactor
 
-| Temuan/saran | Keputusan | Alasan teknis |
-| --- | --- | --- |
-| Pencocokan langsung case-sensitive dapat melewatkan hasil | Diperbaiki | Test merah membuktikan bug; normalisasi lowercase menghasilkan dua hasil sesuai ekspektasi. |
-| Pindahkan aturan filter ke fungsi domain yang murni | Terima | Unit test tidak perlu widget atau database, dan import layer tetap bersih. |
-| Pindahkan query sementara ke penyimpanan atau buat abstraksi tambahan | Tolak | Query bukan data persisten dan filter telah terisolasi; abstraksi ekstra tidak memberi manfaat untuk lingkup fitur ini. |
+| Temuan/saran                                                          | Keputusan  | Alasan teknis                                                                                                           |
+| --------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Pencocokan langsung case-sensitive dapat melewatkan hasil             | Diperbaiki | Test merah membuktikan bug; normalisasi lowercase menghasilkan dua hasil sesuai ekspektasi.                             |
+| Pindahkan aturan filter ke fungsi domain yang murni                   | Terima     | Unit test tidak perlu widget atau database, dan import layer tetap bersih.                                              |
+| Pindahkan query sementara ke penyimpanan atau buat abstraksi tambahan | Tolak      | Query bukan data persisten dan filter telah terisolasi; abstraksi ekstra tidak memberi manfaat untuk lingkup fitur ini. |
+
+## AI Challenge - review kode search
+
+### Prompt review
+
+```text
+Review kode search Flutter ini sebagai senior dev.
+Konteks: feature-first (presentation->domain<-data),
+Riverpod, SQLite + Dio.
+Fokus: kebenaran, arsitektur, test. Abaikan style.
+Beri 3 temuan + level blocker/saran + alasan.
+```
+
+### Output review AI
+
+Tidak ditemukan blocker. Tiga temuan/saran:
+
+1. **Saran (sedang) - cakupan widget test kurang.** Test widget yang ada hanya
+   memastikan empty state saat query tidak cocok. Belum ada test yang
+   membuktikan hasil cocok benar-benar tampil pada UI atau tombol clear
+   mengembalikan seluruh catatan. Jika filter unit lulus tetapi wiring UI salah,
+   test lama tidak akan menangkapnya.
+2. **Saran (rendah) - biaya filter per input.** Setiap perubahan query
+   memeriksa semua judul dan memanggil `toLowerCase`; untuk koleksi sangat besar
+   hal ini berpotensi menambah kerja di UI. Pertimbangkan mengukur performa
+   sebelum memindahkan query ke storage.
+3. **Saran (rendah) - state query lokal halaman.** `_searchQuery` berada di
+   state `NotesPage`, sehingga tidak dibagikan atau dipertahankan saat halaman
+   dibuat ulang. Gunakan Riverpod jika kelak query perlu dipakai lintas halaman
+   atau dipulihkan.
+
+### Verifikasi temuan dan perbaikan
+
+Temuan 1 dikonfirmasi dengan memeriksa `test/notes_search_test.dart`: test
+widget sebelum perubahan hanya menguji hasil tidak cocok. Unit test filter
+memang sudah menguji hasil cocok, tetapi tidak membuktikan bahwa input,
+filtering, dan rendering widget terhubung benar.
+
+Perbaikan: menambah widget test
+`pencarian cocok dan tombol clear memulihkan daftar`. Test memakai repository
+palsu, mencari `week 9`, memeriksa hanya `Week 9` terlihat, lalu menekan tombol
+clear dan memeriksa `Week 9` serta `Week 6` keduanya kembali. Ini menutup gap
+yang ditemukan tanpa menyentuh database atau menjalankan aplikasi.
+
+### Tabel usulan-vs-keputusan per file
+
+| File                           | Usulan review                                                                           | Keputusan                                  | Alasan / bukti                                                                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/domain/filter_notes.dart` | Jaga filter sebagai aturan domain terpisah dan pertimbangkan optimasi untuk list besar. | Terima pemisahan; tolak optimasi sekarang. | Fungsi murni mudah diuji dan bebas import UI/storage. Belum ada profil atau ukuran data yang membuktikan perlu optimasi.                                 |
+| `lib/pages/notes_page.dart`    | Pindahkan query ke Riverpod bila state perlu dibagikan antarhalaman.                    | Tolak untuk kebutuhan sekarang.            | Query hanya input sementara di satu halaman; widget mengelola input/rendering dan memanggil fungsi domain. Tidak ada kebutuhan persistensi atau sharing. |
+| `test/search_filter_test.dart` | Pertahankan test unit untuk hasil cocok, kosong, dan tak cocok.                         | Terima.                                    | Test ini mengisolasi aturan filter dari UI dan repository.                                                                                               |
+| `test/notes_search_test.dart`  | Tambahkan test UI untuk hasil cocok dan clear.                                          | Terima + refactor.                         | Kekurangan coverage terbukti; widget test baru menguji hasil pencarian dan pemulihan daftar setelah clear.                                               |
+| `README.md`                    | Ringkas hasil AI Challenge dan hasil verifikasi.                                        | Terima + dokumentasikan.                   | README merangkum hasil dan merujuk ke catatan review lengkap ini.                                                                                        |
+| `docs/ai-log.md`               | Simpan prompt, output review, bukti, dan keputusan.                                     | Terima + dokumentasikan.                   | Menjadi catatan audit tugas praktikum; tidak mengubah perilaku aplikasi.                                                                                 |
