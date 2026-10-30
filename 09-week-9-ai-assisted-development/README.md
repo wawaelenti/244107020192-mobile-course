@@ -1,8 +1,9 @@
-# Week 9 - Praktikum 1 dan 2
+# Week 9 - Praktikum 1, 2, dan 3
 
 Project praktikum menggunakan `week5_offline_notes` dari Week 5. Praktikum 1
 berfokus pada prompt dan context engineering; Praktikum 2 menghasilkan fitur
-pencarian judul catatan dan verifikasinya.
+pencarian judul catatan; Praktikum 3 mendebug dan memverifikasi pemisahan
+logika search ke fungsi domain yang bisa diuji.
 
 ## Praktikum 1: Prompt dan context engineering
 
@@ -57,3 +58,39 @@ Jalankan project sendiri bila siap untuk menguji:
 3. Query yang tidak cocok: empty state `Tidak ada catatan yang cocok` muncul.
 
 Project tidak dijalankan selama pengerjaan ini sesuai permintaan.
+
+## Praktikum 3: Debug dan refactor
+
+### Debug dengan test merah
+
+Reproduksi bug: cari `belanja` pada daftar dengan judul `Belanja Mingguan`
+dan `Catatan belanja`. Draft case-sensitive hanya menemukan satu catatan.
+Unit test membuktikan hasil yang diharapkan adalah dua catatan; setelah judul
+dan query dinormalisasi dengan `toLowerCase()`, test lulus.
+
+### Hasil refactor
+
+- Aturan pencarian berada di `lib/domain/filter_notes.dart` dalam fungsi murni
+  `filterNotes`, sehingga tidak bergantung pada widget, Riverpod, SQLite, atau
+  Dio.
+- Fungsi filter kurang dari 40 baris dan menerima fungsi `titleOf`; UI dapat
+  memberikan judul tanpa membuat domain bergantung pada model data.
+- `NotesPage` menangani input dan tampilan state saja, sementara operasi
+  penyimpanan tetap melalui repository yang sudah ada.
+- Tidak ada import lintas layer pada fungsi domain dan tidak ada perubahan
+  skema atau perilaku offline.
+
+### Verifikasi akhir
+
+```powershell
+cd week5_offline_notes
+flutter analyze
+dart format --set-exit-if-changed lib/domain/filter_notes.dart lib/pages/notes_page.dart test/search_filter_test.dart test/notes_search_test.dart
+flutter test
+```
+
+Hasil verifikasi akhir: `flutter analyze` bersih, format tidak mengubah file,
+dan seluruh test lulus. Pemeriksaan `dart format --set-exit-if-changed .` untuk
+seluruh project tidak dapat menyelesaikan directory listing karena ada path
+generated yang hilang di `build/`; pemeriksaan format pada file Dart yang
+diubah lulus. Aplikasi tidak dijalankan; uji manual tidak dilakukan.

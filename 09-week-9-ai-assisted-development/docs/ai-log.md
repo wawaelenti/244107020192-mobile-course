@@ -1,4 +1,4 @@
-# AI log - Praktikum 1 dan 2
+# AI log - Praktikum 1, 2, dan 3
 
 Project: `week5_offline_notes`, Flutter dengan Riverpod `^3.4.3` dan SQLite
 (`sqflite ^2.4.4`).
@@ -106,3 +106,54 @@ ke lowercase pada query dan judul.
 ## Privasi
 
 Tidak ada token FCM, JWT, API key, password, atau kredensial yang digunakan.
+
+## Praktikum 3 - Debug dan refactor
+
+### Reproduksi dan akar masalah
+
+Langkah reproduksi: siapkan judul `Belanja Mingguan` dan `Catatan belanja`,
+lalu cari `belanja`. Draft awal memakai `String.contains` langsung, yang
+case-sensitive. Karena itu hanya `Catatan belanja` yang cocok, sedangkan
+`Belanja Mingguan` terlewat.
+
+Test merah `filter mengabaikan huruf besar dan kecil` mereproduksi bug:
+hasil aktual berisi 1 catatan, padahal hasil yang benar 2. Akar masalah ada
+pada normalisasi teks yang tidak dilakukan sebelum pencocokan, bukan pada
+repository atau penyimpanan SQLite. Perbaikan: trim query, ubah query dan
+judul ke lowercase, lalu jalankan ulang test.
+
+### Refactor dan batas layer
+
+Review terhadap kode:
+
+- `filterNotes` adalah fungsi murni kecil di `lib/domain/filter_notes.dart`.
+  Panjangnya di bawah 40 baris dan mencakup hanya aturan pencarian.
+- Fungsi menerima `titleOf` sebagai callback generik; domain tidak perlu
+  mengimpor `Note`, Flutter, Riverpod, Dio, atau SQLite.
+- `NotesPage` memegang input query dan rendering; baca/hapus catatan tetap
+  melalui provider dan repository seperti sebelumnya.
+- Tidak ada pemanggilan database di widget, dan skema/fitur offline tidak
+  disentuh.
+
+Pemisahan fungsi domain sudah dibuat saat implementasi Praktikum 2 agar
+verifikasi search bisa dilakukan melalui unit test. Pada Praktikum 3, hasil
+tersebut ditinjau kembali terhadap batas layer dan challenge refactor; tidak
+ditambahkan abstraksi/notifier baru karena query adalah state input sementara
+UI dan logika filter sudah terisolasi serta dapat diuji.
+
+### Verifikasi akhir Praktikum 3
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| `flutter analyze` | Lulus, tidak ada issue. |
+| `dart format --set-exit-if-changed .` | Tidak selesai karena path generated yang hilang di `build/`. Pemeriksaan format terfokus pada file Dart yang diubah lulus tanpa perubahan. |
+| `flutter test` | Lulus, seluruh 8 test berhasil. |
+| Menjalankan aplikasi / uji manual | Tidak dilakukan sesuai permintaan; yang dijalankan hanya analyze, pemeriksaan format, dan test akhir. |
+
+### Keputusan refactor
+
+| Temuan/saran | Keputusan | Alasan teknis |
+| --- | --- | --- |
+| Pencocokan langsung case-sensitive dapat melewatkan hasil | Diperbaiki | Test merah membuktikan bug; normalisasi lowercase menghasilkan dua hasil sesuai ekspektasi. |
+| Pindahkan aturan filter ke fungsi domain yang murni | Terima | Unit test tidak perlu widget atau database, dan import layer tetap bersih. |
+| Pindahkan query sementara ke penyimpanan atau buat abstraksi tambahan | Tolak | Query bukan data persisten dan filter telah terisolasi; abstraksi ekstra tidak memberi manfaat untuk lingkup fitur ini. |
