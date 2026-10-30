@@ -281,3 +281,162 @@ flutter test
 Pemeriksaan format untuk source dan test fitur juga lulus tanpa perubahan.
 Screenshot bukti analyze dan test tersedia di folder `screenshots` dan
 ditautkan dari README. Aplikasi tidak dijalankan.
+
+## Mini project / Industry Challenge
+
+### Prompt inti
+
+```text
+Peran: senior Flutter developer.
+Konteks: project week5_offline_notes memakai Flutter, Riverpod, SQLite
+(sqflite), dan Dio. NotesPage mendapatkan catatan dari notesProvider melalui
+NoteRepository; model Note memiliki title. Pertahankan dukungan offline.
+Tugas: tambahkan pencarian judul catatan dengan empty state untuk hasil kosong.
+Batas: case-insensitive, query kosong tampilkan semua catatan, jangan query
+SQLite dari widget, jangan ubah schema/repository atau fitur lain. Pisahkan
+filter menjadi fungsi domain murni dan sertakan unit serta widget test.
+Output: patch kecil, cara uji, dan alasan keputusan teknis.
+```
+
+### Konteks yang digunakan
+
+Konteks dibatasi pada bagian yang relevan berikut (bukan seluruh repository):
+
+```text
+lib/pages/notes_page.dart
+lib/data/local/note.dart
+lib/data/repositories/note_repository.dart
+lib/widgets/note_tile.dart
+test/note_test.dart
+pubspec.yaml
+```
+
+Kontrak repository yang relevan:
+
+```dart
+Future<List<Note>> fetchNotes();
+Future<Note> addNote({required String title, String body = ''});
+Future<void> deleteNote(int id);
+Future<int> countDirty();
+```
+
+Model menyediakan `title`, `body`, `updatedAt`, dan `dirty`. Versi dependency
+yang relevan adalah Riverpod `^3.4.3`, SQLite `sqflite ^2.4.4`, Dio `^5.11.1`,
+dan GoRouter `^18.0.1`. Tidak ada API key, token, password, atau secret dalam
+konteks.
+
+### Output awal AI
+
+Draft awal yang dihasilkan untuk fungsi filter melakukan pencocokan langsung
+dengan `contains`, tanpa menormalisasi kapitalisasi:
+
+```dart
+List<T> filterNotes<T>(
+  List<T> notes,
+  String query,
+  String Function(T) titleOf,
+) {
+  final normalizedQuery = query.trim();
+  if (normalizedQuery.isEmpty) return notes;
+  return notes
+      .where((note) => titleOf(note).contains(normalizedQuery))
+      .toList();
+}
+```
+
+Draft tersebut mengandung bug pencarian case-sensitive. Unit test dengan judul
+`Belanja Mingguan` dan query `belanja` menghasilkan satu item, padahal dua
+judul dengan kata "belanja" seharusnya cocok. Implementasi akhir
+menormalisasi query dan judul ke lowercase sebelum pencocokan.
+
+### Tabel terima/tolak saran AI
+
+Perintah `rg` dan `flutter test` pada tabel dijalankan dari root project
+`week5_offline_notes/`.
+
+| Saran | Keputusan | Alasan teknis | Bukti grep/test |
+| --- | --- | --- | --- |
+| Filter dijadikan fungsi domain murni, tidak diletakkan di widget. | Terima | Memisahkan aturan bisnis dari rendering dan memudahkan unit test. | `rg -n "filterNotes|toLowerCase" lib/domain` menemukan fungsi filter; `flutter test test/search_filter_test.dart` lulus (3 test). |
+| Pencarian perlu case-insensitive. | Terima | Test merah membuktikan draft awal melewatkan `Belanja Mingguan` saat query `belanja`. | `rg -n "filter mengabaikan|belanja" test/search_filter_test.dart`; test lulus setelah normalisasi. |
+| Tambahkan widget test untuk hasil cocok, clear, dan empty state. | Terima | Unit test tidak membuktikan wiring input dan rendering. Fake repository membuktikan UI menampilkan hasil cocok, tombol clear memulihkan daftar, dan no-match menampilkan empty state. | `rg -n "testWidgets|Tidak ada catatan yang cocok|Hapus pencarian" test/notes_search_test.dart`; `flutter test test/notes_search_test.dart` lulus (2 test). |
+| Persistensikan query di SQLite/SharedPreferences. | Tolak | Query pencarian adalah state sementara halaman, bukan bagian data notes atau preferensi yang diminta. | Repository/schema tidak diubah; filter bekerja atas list hasil `notesProvider`. |
+| Pindahkan state query ke Riverpod dan optimalkan untuk list besar sekarang. | Tolak | Tidak ada pemakaian lintas halaman atau bukti profiling/volume data yang menunjukkan perlu abstraksi/performa tambahan. | `rg -n "_searchQuery|filterNotes" lib/pages/notes_page.dart` menunjukkan penggunaan lokal pada NotesPage; behavior tercakup test. |
+
+### Bukti mesin hijau
+
+```text
+flutter analyze
+No issues found!
+
+flutter test
+All tests passed! (9 tests)
+```
+
+Screenshot hasil dua perintah tersebut dan tiga skenario UI ada di folder
+`screenshots/`, ditautkan pada README. Perintah `flutter run` hanya
+didokumentasikan untuk pengguna; aplikasi tidak dijalankan selama pengerjaan
+challenge ini.
+
+### Struktur deliverable
+
+```text
+09-week-9-ai-assisted-development/
+  README.md
+  docs/
+    ai-log.md
+  screenshots/
+  week5_offline_notes/
+```
+
+### Perluasan fitur: sorting catatan
+
+Setelah mini project search selesai, sorting ditambahkan sebagai peningkatan
+kecil yang masih relevan dengan daftar notes.
+
+Prompt:
+
+```text
+Tambahkan sorting pada daftar notes yang sudah punya pencarian judul.
+Sediakan pilihan Terbaru (updatedAt terbaru dahulu), Judul A-Z, dan Judul Z-A.
+Sorting harus tetap bekerja setelah filter search, case-insensitive untuk judul,
+tidak mengubah list input, dan jangan ubah database/repository. Pindahkan aturan
+sorting ke fungsi domain murni dan sertakan unit serta widget test.
+```
+
+Draft awal AI yang dipertimbangkan:
+
+```dart
+notes.sort((a, b) => a.title.compareTo(b.title));
+```
+
+Draft tersebut mengurutkan list input secara in-place, hanya mendukung satu
+urutan, dan membedakan kapitalisasi. Implementasi akhir menggunakan
+`sortNotes` di `lib/domain/sort_notes.dart`, membuat copy list, menyediakan
+tiga opsi sorting, membandingkan judul secara case-insensitive, dan memakai
+`updatedAt` untuk opsi Terbaru. UI menerapkan sorting pada hasil filter.
+
+Tabel keputusan:
+
+| Saran | Keputusan | Alasan teknis | Bukti |
+| --- | --- | --- | --- |
+| Mutasi list repository dengan `.sort()` langsung dari widget. | Tolak | Sorting harus terpisah dari UI dan tidak boleh mengubah list yang dipakai sumber/provider. | `sortNotes` membuat `List<T>.of(notes)`; unit test newest memastikan urutan input tetap `[3, 2, 1]`. |
+| Berikan tiga opsi: Terbaru, Judul A-Z, Judul Z-A. | Terima | Opsi berguna untuk notes; Terbaru mempertahankan urutan default repository. | `NoteSortOrder` mendefinisikan tiga opsi; widget test memilih A-Z dan membuktikan urutan tile berubah. |
+| Sorting harus case-insensitive dan dapat digabung dengan search. | Terima | Menghindari perbedaan urutan karena kapitalisasi; sorting setelah filter menjaga query tetap berlaku. | Unit test A-Z/Z-A dan widget test sorting lulus; filter tetap memiliki unit/widget test terpisah. |
+
+Verifikasi setelah penambahan sorting:
+
+```text
+flutter analyze
+No issues found!
+
+flutter test
+All tests passed! (13 tests)
+
+dart format --set-exit-if-changed lib/domain/filter_notes.dart lib/domain/sort_notes.dart lib/pages/notes_page.dart test/search_filter_test.dart test/notes_search_test.dart
+Formatted 5 files (0 changed).
+```
+
+Bukti UI sorting manual tersedia di `screenshots/sorting-newest.png` dan
+`screenshots/sorting-z-a.png`; kedua gambar ditautkan pada bagian Sorting
+catatan di README. Gambar menunjukkan pilihan dropdown dan urutan item untuk
+opsi Terbaru serta Judul Z-A.

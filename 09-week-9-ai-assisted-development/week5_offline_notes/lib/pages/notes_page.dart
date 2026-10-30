@@ -5,6 +5,7 @@ import '../data/local/note.dart';
 import '../data/repositories/note_repository.dart';
 import '../data/sync.dart';
 import '../domain/filter_notes.dart';
+import '../domain/sort_notes.dart';
 import '../widgets/note_tile.dart';
 
 final noteRepositoryProvider = Provider<NoteRepository>(
@@ -29,6 +30,7 @@ class NotesPage extends ConsumerStatefulWidget {
 class _NotesPageState extends ConsumerState<NotesPage> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  NoteSortOrder _sortOrder = NoteSortOrder.newest;
 
   @override
   void dispose() {
@@ -159,6 +161,39 @@ class _NotesPageState extends ConsumerState<NotesPage> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                const Text('Urutkan:'),
+                const SizedBox(width: 12),
+                DropdownButton<NoteSortOrder>(
+                  key: const ValueKey('notes-sort-dropdown'),
+                  value: _sortOrder,
+                  items: const [
+                    DropdownMenuItem(
+                      value: NoteSortOrder.newest,
+                      child: Text('Terbaru'),
+                    ),
+                    DropdownMenuItem(
+                      value: NoteSortOrder.titleAscending,
+                      child: Text('Judul A-Z'),
+                    ),
+                    DropdownMenuItem(
+                      value: NoteSortOrder.titleDescending,
+                      child: Text('Judul Z-A'),
+                    ),
+                  ],
+                  onChanged: (order) {
+                    if (order == null) return;
+                    setState(() {
+                      _sortOrder = order;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: notes.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -174,17 +209,23 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                   _searchQuery,
                   (note) => note.title,
                 );
+                final sortedNotes = sortNotes(
+                  filteredNotes,
+                  order: _sortOrder,
+                  titleOf: (note) => note.title,
+                  updatedAtOf: (note) => note.updatedAt,
+                );
 
-                if (filteredNotes.isEmpty) {
+                if (sortedNotes.isEmpty) {
                   return const Center(
                     child: Text('Tidak ada catatan yang cocok'),
                   );
                 }
 
                 return ListView.builder(
-                  itemCount: filteredNotes.length,
+                  itemCount: sortedNotes.length,
                   itemBuilder: (context, index) {
-                    final note = filteredNotes[index];
+                    final note = sortedNotes[index];
 
                     return NoteTile(
                       note: note,

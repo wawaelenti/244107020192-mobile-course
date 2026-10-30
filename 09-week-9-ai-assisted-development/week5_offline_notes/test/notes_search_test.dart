@@ -19,6 +19,38 @@ class _FakeNoteRepository extends NoteRepository {
 }
 
 void main() {
+  testWidgets('sorting judul mengubah urutan daftar', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noteRepositoryProvider.overrideWithValue(
+            _FakeNoteRepository([
+              Note(title: 'Week 9', updatedAt: DateTime(2026, 10, 30)),
+              Note(title: 'Week 6', updatedAt: DateTime(2026, 10, 29)),
+            ]),
+          ),
+        ],
+        child: const MaterialApp(home: NotesPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('Week 9')).dy,
+      lessThan(tester.getTopLeft(find.text('Week 6')).dy),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('notes-sort-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Judul A-Z').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('Week 6')).dy,
+      lessThan(tester.getTopLeft(find.text('Week 9')).dy),
+    );
+  });
+
   testWidgets('pencarian cocok dan tombol clear memulihkan daftar', (
     tester,
   ) async {
