@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -9,9 +10,10 @@ class AiService {
     : _storage = storage ?? const FlutterSecureStorage(),
       _client = client ?? http.Client();
 
-  static const _apiUrl =
+  static const _modelUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/'
-      'gemini-3.6-flash:streamGenerateContent';
+      'gemini-3.6-flash';
+  static const _inlineFileLimit = 15 * 1024 * 1024;
   static const _apiKeyStorageKey = 'ai_api_key';
 
   final FlutterSecureStorage _storage;
@@ -47,7 +49,8 @@ class AiService {
       );
     }
 
-    final uri = Uri.parse(_apiUrl).replace(queryParameters: {'alt': 'sse'});
+    final uri = Uri.parse('$_modelUrl:streamGenerateContent')
+        .replace(queryParameters: {'alt': 'sse'});
     final request = http.Request('POST', uri)
       ..headers['Content-Type'] = 'application/json'
       ..headers['x-goog-api-key'] = apiKey
@@ -114,6 +117,142 @@ class AiService {
     if (!receivedText) {
       throw Exception('Gemini tidak mengembalikan teks untuk pertanyaan ini.');
     }
+  }
+
+  Future<String> recognizeText(File imageFile) {
+    return _generateFromFile(
+      file: imageFile,
+      prompt:
+          'Ekstrak semua teks yang terlihat pada gambar. Pertahankan urutan '
+          'baris dan tata letaknya sebisa mungkin. Jika tidak ada teks yang '
+          'terbaca, jelaskan bahwa teks tidak ditemukan.',
+      mimeType: _imageMimeType(imageFile.path),
+    );
+  }
+
+  Future<String> describeImage(File imageFile) {
+    return _generateFromFile(
+      file: imageFile,
+      prompt:
+          'Deskripsikan gambar ini dengan jelas dan ringkas. Sebutkan objek '
+          'dan detail penting yang terlihat tanpa menebak informasi yang '
+          'tidak dapat dipastikan dari gambar.',
+      mimeType: _imageMimeType(imageFile.path),
+    );
+  }
+
+  Future<String> speechToText(File audioFile) {
+    return _generateFromFile(
+      file: audioFile,
+      prompt:
+          'Transkripsikan seluruh ucapan dalam audio ini dengan akurat. '
+          'Gunakan bahasa yang sama dengan pembicara dan keluarkan hanya '
+          'teks transkripsinya. Jika tidak ada ucapan yang dapat dikenali, '
+          'jelaskan bahwa ucapan tidak ditemukan.',
+      mimeType: 'audio/wav',
+    );
+  }
+
+  Future<String> _generateFromFile({
+    required File file,
+    required String prompt,
+    required String mimeType,
+  }) async {
+    final apiKey = await readApiKey();
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception(
+        'API key belum tersedia. Ketuk ikon kunci untuk mengaturnya.',
+      );
+    }
+
+    if (!await file.exists()) {
+      throw Exception('File yang dipilih tidak ditemukan.');
+    }
+
+    final fileSize = await file.length();
+    if (fileSize == 0) {
+      throw Exception('File yang dipilih kosong.');
+    }
+    if (fileSize > _inlineFileLimit) {
+      throw Exception(
+        'Ukuran file melebihi batas 15 MB. Pilih file yang lebih kecil.',
+      );
+    }
+
+    final uri = Uri.parse('$_modelUrl:generateContent');
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: jsonEncode({
+            'contents': [
+              {
+                'parts': [
+                  {'text': prompt},
+                  {
+                    'inlineData': {
+                      'mimeType': mimeType,
+                      'data': base64Encode(await file.readAsBytes()),
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        )
+        .timeout(const Duration(seconds: 120));
+
+    if (response.statusCode != 200) {
+      throw Exception(_errorMessage(response.statusCode, response.body));
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      final candidates = decoded['candidates'];
+      if (candidates is List && candidates.isNotEmpty) {
+        final candidate = candidates.first;
+        if (candidate is Map<String, dynamic>) {
+          final content = candidate['content'];
+          if (content is Map<String, dynamic>) {
+            final parts = content['parts'];
+            if (parts is List) {
+              final text = parts
+                  .whereType<Map<String, dynamic>>()
+                  .where((part) => part['thought'] != true)
+                  .map((part) => part['text'])
+                  .whereType<String>()
+                  .join();
+              if (text.trim().isNotEmpty) return text.trim();
+            }
+          }
+        }
+      }
+
+      final promptFeedback = decoded['promptFeedback'];
+      if (promptFeedback is Map<String, dynamic> &&
+          promptFeedback['blockReason'] is String) {
+        throw Exception(
+          'Permintaan ditolak Gemini: ${promptFeedback['blockReason']}.',
+        );
+      }
+    }
+
+    throw Exception('Gemini tidak mengembalikan teks untuk file ini.');
+  }
+
+  String _imageMimeType(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    return switch (extension) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'heic' => 'image/heic',
+      'heif' => 'image/heif',
+      _ => throw ArgumentError('Format gambar .$extension tidak didukung.'),
+    };
   }
 
   String _errorMessage(int statusCode, String responseBody) {

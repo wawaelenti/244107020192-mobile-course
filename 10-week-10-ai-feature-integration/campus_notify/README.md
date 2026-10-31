@@ -19,6 +19,18 @@ ke source code. Untuk aplikasi yang didistribusikan ke publik, jangan menaruh
 API key pribadi langsung di aplikasi klien; gunakan backend sendiri untuk
 menjaga kredensial dan membatasi penggunaan.
 
+### OCR, pemahaman gambar, dan transkripsi suara
+
+- Ketuk ikon gambar di layar chat, lalu ambil foto dengan kamera atau pilih dari
+  galeri. Pilih **Ekstrak teks (OCR)** untuk membaca teks pada gambar atau
+  **Deskripsikan gambar** untuk mendapatkan penjelasan objek dan detailnya.
+- Ketuk ikon mikrofon untuk mulai merekam, lalu ketuk ikon stop untuk
+  mengirimkan rekaman dan menampilkan transkripsinya. Rekaman otomatis berhenti
+  setelah 60 detik.
+- Gambar dan rekaman dikirim ke Gemini untuk dianalisis; file inline dibatasi
+  hingga 15 MB. Izin kamera, galeri, dan mikrofon diperlukan sesuai fitur yang
+  dipakai.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
