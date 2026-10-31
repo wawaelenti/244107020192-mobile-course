@@ -31,6 +31,19 @@ menjaga kredensial dan membatasi penggunaan.
   hingga 15 MB. Izin kamera, galeri, dan mikrofon diperlukan sesuai fitur yang
   dipakai.
 
+### Privasi, kuota, dan fallback
+
+| Risiko | Mitigasi |
+|---|---|
+| Data sensitif terkirim ke Gemini | Konfirmasi privasi sebelum setiap pengiriman; UI mengingatkan agar tidak mengirim password, data kesehatan, nomor kartu, dan dokumen identitas. |
+| Biaya/kuota melonjak | Maksimal 20 percobaan request baru per hari per perangkat (berlaku bersama untuk semua API key di perangkat). Penghitung tersimpan di secure storage dan reset berdasarkan tanggal UTC. Maksimal 30 respons di-cache sementara di memori; cache hilang saat aplikasi ditutup dan tidak memakai request baru. |
+| API gagal atau offline | Pesan error ramah, tombol **Coba lagi**, dan akses **Catatan offline**. Rekaman sementara dihapus setelah diproses. |
+| Respons tidak relevan | Respons kosong ditolak dan catatan SQLite lokal dapat dibuka kapan saja sebagai sumber alternatif. AI tetap bisa keliru, jadi verifikasi informasi penting. |
+
+Batas 20 request ini hanya pengaman sisi klien, bukan penegakan per-user yang
+aman terhadap penghapusan data atau modifikasi aplikasi. Aplikasi produksi
+harus menegakkan kuota per akun di backend.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

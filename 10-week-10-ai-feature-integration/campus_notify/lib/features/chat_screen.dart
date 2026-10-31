@@ -4,12 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../ai/ai_service.dart';
+import 'notes/data/providers/note_data_providers.dart';
 
 final aiServiceProvider = Provider<AiService>((ref) {
   final service = AiService();
@@ -34,6 +36,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isRecording = false;
   int _recordingSeconds = 0;
   Timer? _recordingTimer;
+  _RetryRequest? _retryRequest;
 
   AiService get _aiService => ref.read(aiServiceProvider);
 
@@ -49,12 +52,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _sendMessage() async {
     final question = _messageController.text.trim();
     if (question.isEmpty || _isSending || _isRecording) return;
+    if (!await _confirmAiSubmission('pesan teks')) return;
 
     _messageController.clear();
     _beginRequest(text: question);
+    _retryRequest = _RetryRequest(question, () => _aiService.ask(question));
+    await _consumeStream(_retryRequest!);
+  }
 
+  String _messageFromError(Object error) {
+    if (error is TimeoutException ||
+        error is SocketException ||
+        error is http.ClientException) {
+      return 'Gemini tidak dapat dijangkau. Periksa koneksi internet, coba '
+          'lagi, atau buka catatan offline.';
+    }
+
+    final message = error.toString().replaceFirst('Exception: ', '');
+    if (message.contains('(429)')) {
+      return 'Permintaan ke Gemini terlalu banyak. Tunggu sebentar atau coba '
+          'lagi nanti.';
+    }
+    if (message.contains('(403)') || message.contains('(401)')) {
+      return 'Gemini menolak API key. Periksa key dan akses API di Google AI '
+          'Studio.';
+    }
+    if (message.contains('(500)') ||
+        message.contains('(502)') ||
+        message.contains('(503)') ||
+        message.contains('(504)')) {
+      return 'Layanan Gemini sedang sibuk. Coba lagi nanti atau buka catatan '
+          'offline.';
+    }
+    return message;
+  }
+
+  Future<void> _consumeStream(_RetryRequest retryRequest) async {
     try {
-      await for (final chunk in _aiService.ask(question)) {
+      await for (final chunk in retryRequest.stream()) {
         if (!mounted) return;
         setState(() {
           final current = _messages.last;
@@ -64,28 +99,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         });
         _scrollToBottom();
       }
+
+      if (mounted) {
+        setState(() {
+          _messages[_messages.length - 1] = _messages.last.copyWith(
+            canRetry: false,
+          );
+          _retryRequest = null;
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _messages[_messages.length - 1] = _messages.last.copyWith(
           text: _messageFromError(error),
           isError: true,
+          canRetry: _retryRequest != null,
         );
       });
     } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
-  String _messageFromError(Object error) {
-    return error.toString().replaceFirst('Exception: ', '');
+  Future<void> _retryLastRequest() async {
+    final retryRequest = _retryRequest;
+    if (_isSending || retryRequest == null) return;
+    if (!await _confirmAiSubmission(retryRequest.description)) return;
+
+    setState(() {
+      _isSending = true;
+      _messages[_messages.length - 1] = _messages.last.copyWith(
+        text: '',
+        isError: false,
+        canRetry: false,
+      );
+    });
+    _scrollToBottom();
+    await _consumeStream(retryRequest);
+  }
+
+  Future<bool> _confirmAiSubmission(String contentType) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi privasi'),
+        content: Text(
+          'Gemini akan menerima $contentType ini untuk diproses. Jangan '
+          'kirim data sensitif seperti password, nomor kartu, data kesehatan, '
+          'atau foto dokumen identitas. Maksimal ${AiService.dailyRequestLimit} '
+          'request baru per hari pada perangkat ini; jawaban yang tersimpan '
+          'sementara di memori tidak memakai request tambahan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true && mounted;
   }
 
   void _beginRequest({required String text, String? imagePath}) {
     setState(() {
       _isSending = true;
+      _retryRequest = null;
       _messages
         ..add(_ChatMessage(text: text, isUser: true, imagePath: imagePath))
         ..add(_ChatMessage(text: '', isUser: false));
@@ -109,13 +193,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required String userText,
     String? imagePath,
     required Future<String> Function() request,
+    bool canRetry = true,
+    bool privacyConfirmed = false,
   }) async {
     if (_isSending || !mounted) return;
+    if (!privacyConfirmed &&
+        !await _confirmAiSubmission(
+          imagePath == null ? 'rekaman suara' : 'gambar',
+        )) {
+      return;
+    }
     _beginRequest(text: userText, imagePath: imagePath);
     try {
       _finishRequest(await request());
     } catch (error) {
-      _finishRequest(_messageFromError(error), isError: true);
+      if (!mounted) return;
+      _retryRequest = canRetry
+          ? _RetryRequest(userText, () => Stream<String>.fromFuture(request()))
+          : null;
+      setState(() {
+        _messages[_messages.length - 1] = _messages.last.copyWith(
+          text: _messageFromError(error),
+          isError: true,
+          canRetry: canRetry,
+        );
+        _isSending = false;
+      });
+      _scrollToBottom();
     }
   }
 
@@ -200,6 +304,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _startRecording() async {
     try {
+      if (!await _confirmAiSubmission('rekaman suara')) return;
       if (!await _audioRecorder.hasPermission()) {
         if (mounted) _showMessage('Izin mikrofon diperlukan untuk merekam.');
         return;
@@ -256,6 +361,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         await _runMediaRequest(
           userText: 'Transkripsikan rekaman suara',
           request: () => _aiService.speechToText(audioFile),
+          canRetry: false,
+          privacyConfirmed: true,
         );
       } finally {
         if (await audioFile.exists()) {
@@ -276,6 +383,55 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showOfflineNotes() async {
+    try {
+      final result = await ref.read(noteRepositoryProvider).fetchNotes();
+      if (!mounted) return;
+
+      final notes = result.notes;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Catatan offline'),
+          content: SizedBox(
+            width: 420,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: result.failure != null
+                  ? Text(result.failure!.message)
+                  : notes.isEmpty
+                  ? const Text(
+                      'Belum ada catatan tersimpan di perangkat. Coba lagi '
+                      'saat koneksi Gemini tersedia.',
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: notes.length,
+                      separatorBuilder: (_, _) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final note = notes[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(note.title),
+                          subtitle: note.body.isEmpty ? null : Text(note.body),
+                        );
+                      },
+                    ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) _showMessage('Gagal membaca catatan offline: $error');
+    }
   }
 
   String get _recordingDuration {
@@ -357,19 +513,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: const Text('Chat dengan AI'),
         actions: [
           IconButton(
+            tooltip: 'Buka catatan offline',
+            onPressed: _showOfflineNotes,
+            icon: const Icon(Icons.notes_outlined),
+          ),
+          IconButton(
             tooltip: 'Atur API key',
             onPressed: _configureApiKey,
             icon: const Icon(Icons.key_outlined),
           ),
           IconButton(
             tooltip: 'Hapus percakapan',
-            onPressed: _isSending ? null : () => setState(_messages.clear),
+            onPressed: _isSending
+                ? null
+                : () {
+                    setState(() {
+                      _messages.clear();
+                      _retryRequest = null;
+                    });
+                  },
             icon: const Icon(Icons.delete_outline),
           ),
         ],
       ),
       body: Column(
         children: [
+          Material(
+            color: Theme.of(context).colorScheme.tertiaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.privacy_tip_outlined,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onTertiaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Jangan kirim password, data kesehatan, nomor kartu, '
+                      'atau foto identitas.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onTertiaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: _messages.isEmpty
                 ? _buildEmptyState(context)
@@ -385,6 +580,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             _isSending &&
                             index == _messages.length - 1 &&
                             message.text.isEmpty,
+                        onRetry: message.canRetry ? _retryLastRequest : null,
+                        onOffline: message.isError ? _showOfflineNotes : null,
                       );
                     },
                   ),
@@ -510,28 +707,38 @@ class _ChatMessage {
     required this.isUser,
     this.imagePath,
     this.isError = false,
+    this.canRetry = false,
   });
 
   final String text;
   final bool isUser;
   final String? imagePath;
   final bool isError;
+  final bool canRetry;
 
-  _ChatMessage copyWith({String? text, bool? isError}) {
+  _ChatMessage copyWith({String? text, bool? isError, bool? canRetry}) {
     return _ChatMessage(
       text: text ?? this.text,
       isUser: isUser,
       imagePath: imagePath,
       isError: isError ?? this.isError,
+      canRetry: canRetry ?? this.canRetry,
     );
   }
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.showLoading});
+  const _MessageBubble({
+    required this.message,
+    required this.showLoading,
+    this.onRetry,
+    this.onOffline,
+  });
 
   final _ChatMessage message;
   final bool showLoading;
+  final VoidCallback? onRetry;
+  final VoidCallback? onOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -596,6 +803,33 @@ class _MessageBubble extends StatelessWidget {
                 message.text,
                 style: TextStyle(color: foregroundColor),
               ),
+            if (message.isError && (onRetry != null || onOffline != null))
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    if (onRetry != null)
+                      TextButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Coba lagi'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: foregroundColor,
+                        ),
+                      ),
+                    if (onOffline != null)
+                      TextButton.icon(
+                        onPressed: onOffline,
+                        icon: const Icon(Icons.notes_outlined, size: 18),
+                        label: const Text('Catatan offline'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: foregroundColor,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -604,3 +838,10 @@ class _MessageBubble extends StatelessWidget {
 }
 
 enum _ImageTask { ocr, describe }
+
+class _RetryRequest {
+  const _RetryRequest(this.description, this.stream);
+
+  final String description;
+  final Stream<String> Function() stream;
+}

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -14,10 +15,15 @@ class AiService {
       'https://generativelanguage.googleapis.com/v1beta/models/'
       'gemini-3.6-flash';
   static const _inlineFileLimit = 15 * 1024 * 1024;
+  static const dailyRequestLimit = 20;
   static const _apiKeyStorageKey = 'ai_api_key';
+  static const _dailyUsageStorageKey = 'ai_daily_usage';
+  static const _maxCachedResponses = 30;
 
   final FlutterSecureStorage _storage;
   final http.Client _client;
+  final Map<String, String> _responseCache = {};
+  Future<void> _quotaLock = Future<void>.value();
 
   Future<String?> readApiKey() {
     return _storage.read(key: _apiKeyStorageKey);
@@ -30,6 +36,7 @@ class AiService {
     }
 
     await _storage.write(key: _apiKeyStorageKey, value: trimmedKey);
+    _responseCache.clear();
   }
 
   Stream<String> ask(String question) async* {
@@ -42,6 +49,13 @@ class AiService {
       );
     }
 
+    final cacheKey = 'text:${sha256.convert(utf8.encode(trimmedQuestion))}';
+    final cachedResponse = _responseCache[cacheKey];
+    if (cachedResponse != null) {
+      yield cachedResponse;
+      return;
+    }
+
     final apiKey = await readApiKey();
     if (apiKey == null || apiKey.isEmpty) {
       throw Exception(
@@ -49,6 +63,7 @@ class AiService {
       );
     }
 
+    await _consumeDailyQuota();
     final uri = Uri.parse('$_modelUrl:streamGenerateContent')
         .replace(queryParameters: {'alt': 'sse'});
     final request = http.Request('POST', uri)
@@ -81,6 +96,7 @@ class AiService {
         .transform(const LineSplitter())
         .timeout(const Duration(seconds: 60));
 
+    final responseText = StringBuffer();
     await for (final line in lines) {
       if (!line.startsWith('data:')) continue;
       final payload = line.substring(5).trim();
@@ -108,6 +124,7 @@ class AiService {
           final text = part['text'] as String;
           if (text.isNotEmpty) {
             receivedText = true;
+            responseText.write(text);
             yield text;
           }
         }
@@ -117,6 +134,7 @@ class AiService {
     if (!receivedText) {
       throw Exception('Gemini tidak mengembalikan teks untuk pertanyaan ini.');
     }
+    _cacheResponse(cacheKey, responseText.toString());
   }
 
   Future<String> recognizeText(File imageFile) {
@@ -179,6 +197,12 @@ class AiService {
       );
     }
 
+    final bytes = await file.readAsBytes();
+    final cacheKey = '$mimeType:${sha256.convert(bytes)}:$prompt';
+    final cachedResponse = _responseCache[cacheKey];
+    if (cachedResponse != null) return cachedResponse;
+
+    await _consumeDailyQuota();
     final uri = Uri.parse('$_modelUrl:generateContent');
     final response = await _client
         .post(
@@ -195,7 +219,7 @@ class AiService {
                   {
                     'inlineData': {
                       'mimeType': mimeType,
-                      'data': base64Encode(await file.readAsBytes()),
+                      'data': base64Encode(bytes),
                     },
                   },
                 ],
@@ -225,7 +249,11 @@ class AiService {
                   .map((part) => part['text'])
                   .whereType<String>()
                   .join();
-              if (text.trim().isNotEmpty) return text.trim();
+              if (text.trim().isNotEmpty) {
+                final result = text.trim();
+                _cacheResponse(cacheKey, result);
+                return result;
+              }
             }
           }
         }
@@ -241,6 +269,49 @@ class AiService {
     }
 
     throw Exception('Gemini tidak mengembalikan teks untuk file ini.');
+  }
+
+  Future<void> _consumeDailyQuota() async {
+    final previous = _quotaLock;
+    final lock = Completer<void>();
+    _quotaLock = lock.future;
+    await previous;
+
+    try {
+      final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+      final stored = await _storage.read(key: _dailyUsageStorageKey);
+      var count = 0;
+      if (stored != null) {
+        final parts = stored.split(':');
+        if (parts.length == 2 && parts.first == today) {
+          count = (int.tryParse(parts.last) ?? 0)
+              .clamp(0, dailyRequestLimit)
+              .toInt();
+        }
+      }
+
+      if (count >= dailyRequestLimit) {
+        throw Exception(
+          'Batas harian $dailyRequestLimit permintaan AI sudah tercapai. '
+          'Coba lagi besok atau gunakan catatan offline.',
+        );
+      }
+
+      await _storage.write(
+        key: _dailyUsageStorageKey,
+        value: '$today:${count + 1}',
+      );
+    } finally {
+      lock.complete();
+    }
+  }
+
+  void _cacheResponse(String key, String response) {
+    _responseCache.remove(key);
+    if (_responseCache.length >= _maxCachedResponses) {
+      _responseCache.remove(_responseCache.keys.first);
+    }
+    _responseCache[key] = response;
   }
 
   String _imageMimeType(String path) {
