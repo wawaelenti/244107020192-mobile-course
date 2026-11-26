@@ -33,9 +33,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            13-week-13-ci-cd-automation/campus_notify/android/**/*.gradle.kts
+            13-week-13-ci-cd-automation/campus_notify/android/gradle.properties
+            13-week-13-ci-cd-automation/campus_notify/android/gradle/wrapper/gradle-wrapper.properties
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.50.1'
+          cache: true
+          pub-cache: true
       - run: flutter pub get
       - name: Check version and tag
         id: version

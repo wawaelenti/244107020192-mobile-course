@@ -1,7 +1,7 @@
 import 'package:campus_notify/data/token_store.dart';
 import 'package:campus_notify/main.dart';
 import 'package:campus_notify/providers/auth_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

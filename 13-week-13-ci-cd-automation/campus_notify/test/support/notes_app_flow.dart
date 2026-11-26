@@ -4,7 +4,7 @@ import 'package:campus_notify/features/notes/data/repositories/cached_note_repos
 import 'package:campus_notify/features/notes/data/repositories/json_note_repository.dart';
 import 'package:campus_notify/main.dart';
 import 'package:campus_notify/providers/auth_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

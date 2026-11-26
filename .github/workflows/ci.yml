@@ -2,6 +2,8 @@ name: ci
 
 on:
   pull_request:
+    paths:
+      - '07-week-7-clean-architecture/**'
 
 jobs:
   verify:

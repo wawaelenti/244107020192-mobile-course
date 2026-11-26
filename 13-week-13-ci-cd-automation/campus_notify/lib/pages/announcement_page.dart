@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AnnouncementPage extends StatelessWidget {
   const AnnouncementPage({super.key, required this.id});

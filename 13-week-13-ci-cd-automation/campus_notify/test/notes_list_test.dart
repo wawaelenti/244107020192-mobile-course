@@ -1,6 +1,6 @@
 import 'package:campus_notify/features/notes/domain/entities/note.dart';
 import 'package:campus_notify/features/notes/presentation/widgets/notes_list.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
