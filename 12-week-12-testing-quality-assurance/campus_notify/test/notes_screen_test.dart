@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:campus_notify/core/failures.dart';
 import 'package:campus_notify/features/notes/data/providers/note_data_providers.dart';
 import 'package:campus_notify/features/notes/data/repositories/cached_note_repository.dart';
@@ -96,6 +98,37 @@ void main() {
       expect(find.text('Jadwal praktikum'), findsOneWidget);
       expect(find.text('Belum ada catatan.'), findsNothing);
       expect((await repository.fetchNotes()).notes.single.body, 'Bawa laptop.');
+    });
+
+    testWidgets('menahan simpan ganda sampai penyimpanan selesai', (
+      tester,
+    ) async {
+      final pendingSave = Completer<void>();
+      repository.beforeSave = () => pendingSave.future;
+      await openForm(tester);
+      await tester.enterText(_title, 'Catatan sekali');
+
+      // Dua ketukan sebelum frame berikutnya juga harus dilindungi oleh _saving.
+      await tester.tap(_save);
+      await tester.tap(_save);
+      await tester.pump();
+
+      expect(repository.addCalls, 1);
+      expect((await repository.fetchNotes()).notes, isEmpty);
+      expect(find.text('Menyimpan…'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      expect(tester.widget<TextFormField>(_title).enabled, isFalse);
+      expect(tester.widget<TextFormField>(_body).enabled, isFalse);
+
+      pendingSave.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Catatan sekali'), findsOneWidget);
+      expect((await repository.fetchNotes()).notes, hasLength(1));
+      expect(repository.addCalls, 1);
     });
 
     testWidgets('mempertahankan masukan saat gagal dan bisa menyimpan ulang', (

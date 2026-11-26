@@ -9,6 +9,7 @@ class FakeNoteRepository implements NoteRepository {
   final List<Note> _notes;
   Failure? fetchFailure;
   Failure? saveFailure;
+  Future<void> Function()? beforeSave;
   int addCalls = 0;
 
   @override
@@ -24,6 +25,7 @@ class FakeNoteRepository implements NoteRepository {
     String body = '',
   }) async {
     addCalls++;
+    await beforeSave?.call();
     final failure = saveFailure;
     if (failure != null) return (note: null, failure: failure);
 
