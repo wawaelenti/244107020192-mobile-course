@@ -1,0 +1,69 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    # Public configuration only. Production signing belongs to a separate release workflow.
+    env:
+      PUBLIC_API_BASE_URL: ${{ vars.API_BASE_URL || 'https://example-campus-api.test' }}
+      PUBLIC_APP_ENV: ${{ vars.APP_ENV || 'development' }}
+    defaults:
+      run:
+        working-directory: 13-week-13-ci-cd-automation/campus_notify
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            13-week-13-ci-cd-automation/campus_notify/android/**/*.gradle.kts
+            13-week-13-ci-cd-automation/campus_notify/android/gradle.properties
+            13-week-13-ci-cd-automation/campus_notify/android/gradle/wrapper/gradle-wrapper.properties
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.1'
+          cache: true
+          pub-cache: true
+      - run: flutter pub get
+      - name: Check version and tag
+        id: version
+        run: dart run tool/check_version.dart
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage
+      - run: >-
+          flutter build apk --release
+          --dart-define=API_BASE_URL="$PUBLIC_API_BASE_URL"
+          --dart-define=APP_ENV="$PUBLIC_APP_ENV"
+      - run: >-
+          flutter build appbundle --release
+          --dart-define=API_BASE_URL="$PUBLIC_API_BASE_URL"
+          --dart-define=APP_ENV="$PUBLIC_APP_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-builds-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.build_number }}
+          path: |
+            13-week-13-ci-cd-automation/campus_notify/build/app/outputs/flutter-apk/app-release.apk
+            13-week-13-ci-cd-automation/campus_notify/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
