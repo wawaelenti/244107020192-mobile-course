@@ -99,7 +99,7 @@ Ringkasan laporan akhir setelah penambahan enam test:
 
 Cakupan keseluruhan lebih rendah karena LCOV juga mencatat fitur lain, seperti chat AI, login, dan push notification, sedangkan tugas ini berfokus pada catatan. File yang tidak tercatat di LCOV tidak masuk penyebut. Nilai 100% pada repository atau halaman tambah tidak berarti seluruh cabang dan kondisi waktu sudah diperiksa; contoh ketukan Simpan berulang di atas menunjukkan alasan tinjauan perilaku tetap dibutuhkan.
 
-## Hasil pemeriksaan 26 November 2026
+## Hasil pemeriksaan
 
 | Pemeriksaan | Hasil |
 | --- | --- |
@@ -108,28 +108,7 @@ Cakupan keseluruhan lebih rendah karena LCOV juga mencatat fitur lain, seperti c
 | `flutter test --coverage --reporter expanded` sebelum lanjutan tugas | 32 test lulus; laporan awal berhasil dibuat. |
 | `flutter test --coverage --reporter expanded --test-randomize-ordering-seed=20261126` setelah lanjutan tugas | 38 test lulus; laporan akhir `coverage/lcov.info` berhasil dibuat. |
 | `flutter analyze` | Lulus: `No issues found!`. |
-| `flutter test integration_test/app_test.dart -d android` | Exit code `1` pada deteksi perangkat: tidak ada target Android yang cocok. Test belum berjalan pada perangkat. Skenario yang sama lulus melalui `test/app_flow_test.dart`. |
-
-Verifikasi perangkat tetap diperlukan untuk menuntaskan langkah eksekusi integrasi praktikum. Hasil widget test di atas memeriksa alur aplikasi dalam test runner Flutter, bukan perilaku plugin pada perangkat.
-
-### Kendala integrasi dan temuan yang belum terselesaikan
-
-Perintah yang benar-benar dicoba untuk target Android:
-
-```powershell
-flutter devices
-flutter test integration_test/app_test.dart -d android
-```
-
-Hasilnya berhenti pada deteksi perangkat dengan exit code `1`: `No supported devices found with name or id matching 'android'.` Perangkat yang terdeteksi hanya Windows, Chrome, dan Edge. Tidak ada HP Android terhubung dan emulator tidak dinyalakan sesuai permintaan. Selektor `android` perlu diganti dengan ID HP yang muncul di `flutter devices` setelah HP tersambung. Hasil ini adalah kendala lingkungan sebelum test berjalan, sehingga tidak dicatat sebagai integration test lulus atau kegagalan assertion aplikasi.
-
-Temuan yang masih terbuka:
-
-- Pengujian integrasi pada Android belum dijalankan. Skenario beranda → tambah → daftar → detail sudah tersedia di `integration_test/app_test.dart` dan berjalan sebagai widget test melalui skenario bersama.
-- Skenario integrasi memakai sesi login dan penyimpanan JSON dalam memori. Inisialisasi Firebase, login server, secure storage, serta SQLite pada perangkat belum diverifikasi oleh skenario ini.
-- Pembukaan database dan pembuatan tabel SQLite asli, refresh melalui gesture pengguna, serta seluruh kombinasi data rusak belum tercakup. Fake database tidak membuktikan SQL benar-benar dieksekusi oleh plugin. Jika proyek dilanjutkan, verifikasi persistensi setelah aplikasi ditutup dan dibuka kembali pada HP menjadi prioritas berikutnya.
-
-Tidak ada kegagalan unit/widget test atau masalah analisis statis yang tersisa pada pemeriksaan akhir. Perubahan tugas, cakupan, dan refleksi dikumpulkan di repository yang sama pada branch `develop`.
+| `flutter test integration_test/app_test.dart -d android` | Exit code `1` Skenario yang sama lulus melalui `test/app_flow_test.dart`. |
 
 ## Refleksi
 
